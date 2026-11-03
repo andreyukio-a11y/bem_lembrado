@@ -703,9 +703,35 @@ function initApp() {
       catNome = "Compromisso";
     }
 
-    let timeFormatted = "Sem horário definido";
+    let scheduleInfoHtml = "";
     if (itemDate) {
-      timeFormatted = itemDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + " · " + itemDate.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+      const isToday = itemDate.toDateString() === now.toDateString();
+      const tomorrow = new Date(now);
+      tomorrow.setDate(now.getDate() + 1);
+      const isTomorrow = itemDate.toDateString() === tomorrow.toDateString();
+
+      let dayText = itemDate.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+      if (isToday) dayText = "Hoje";
+      else if (isTomorrow) dayText = "Amanhã";
+      else {
+        const diaSemana = itemDate.toLocaleDateString([], { weekday: 'short' });
+        dayText = `${diaSemana}, ${dayText}`;
+      }
+
+      const timeStr = itemDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      scheduleInfoHtml = `
+        <div class="card-schedule-badge">
+          <span class="schedule-time">${ICONS.clock} ${timeStr}</span>
+          <span class="schedule-sep">·</span>
+          <span class="schedule-date">${ICONS.calendar} ${dayText}</span>
+        </div>
+      `;
+    }
+
+    let doseHtml = "";
+    if (item.dose) {
+      doseHtml = `<span class="card-dose-tag">${item.dose}</span>`;
     }
 
     // Fechamento de ciclo para remédio
@@ -743,10 +769,18 @@ function initApp() {
         </div>
 
         <div class="card-title">${item.titulo}</div>
-        <div class="card-time">${ICONS.clock} ${timeFormatted}</div>
+
+        <div class="card-meta-row">
+          ${scheduleInfoHtml}
+          ${doseHtml}
+        </div>
+
+        ${item.transcricao_original && item.transcricao_original.toLowerCase() !== item.titulo.toLowerCase() ? `
+          <div class="card-desc-box">"${item.transcricao_original}"</div>
+        ` : ''}
 
         <div class="card-footer">
-          <small style="color: var(--text-secondary); font-size: 0.76rem;">"${item.transcricao_original}"</small>
+          <div></div>
           <div class="card-actions">
             ${item.status !== 'concluido' ? `<button class="btn-action btn-complete" data-id="${item.id}" title="Marcar como Concluído">${ICONS.check} Concluir</button>` : ''}
             <button class="btn-action btn-reschedule" data-id="${item.id}" data-title="${item.titulo}" title="Reagendar">${ICONS.reschedule} Reagendar</button>

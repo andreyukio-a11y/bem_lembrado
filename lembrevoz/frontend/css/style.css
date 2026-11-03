@@ -479,22 +479,74 @@ body.modo-selecao .card-checkbox {
 .status-badge.concluido { background: #dcfce7; color: #15803d; }
 
 .card-title {
-  font-size: 1.05rem;
-  font-weight: 600;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
 }
 
-.card-time {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
+.card-meta-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
 }
 
-.card-time svg {
-  width: 14px;
-  height: 14px;
+.card-schedule-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card-bg);
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.schedule-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.schedule-time svg,
+.schedule-date svg {
+  width: 15px;
+  height: 15px;
   fill: currentColor;
+}
+
+.schedule-sep {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.schedule-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+}
+
+.card-dose-tag {
+  background: #ede9fe;
+  color: #6d28d9;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.card-desc-box {
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-style: italic;
 }
 
 .card-footer {

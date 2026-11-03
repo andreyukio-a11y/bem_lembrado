@@ -10,24 +10,50 @@ def parse_reminder_title(text: str) -> dict:
         - dose: dose extraída (ou "")
     """
     txt = text.lower()
-    # Verbo de ação relevante
-    action_match = re.search(r'\b(tomar|ingestir|beber|aplicar|usar)\b', txt)
-    action = action_match.group(1).capitalize() if action_match else "Lembrar"
-
-    # Nome da medicação (palavra imediata após o verbo)
-    med_match = re.search(r'\b(?:tomar|ingestir|beber|aplicar|usar)\s+([a-zçãáâéêíóôú]+)', txt)
-    medication = med_match.group(1).capitalize() if med_match else ""
 
     # Dose (número + unidade)
     dose_match = re.search(r'(\d+(?:[.,]\d+)?\s*(?:mg|ml|g|caps|comprimidos|gotas))', txt)
     dose = dose_match.group(1) if dose_match else ""
 
+    # Remédios conhecidos ou palavra 'pressao', 'diabetes'
+    med_match = re.search(r'\b(dipirona|losartana|paracetamol|ibuprofeno|omeprazol|atenolol|metformina|sinvastatina|clonazepam|insulina|antibiotico|antialergico|pressao|diabetes)\b', txt)
+    if med_match:
+        med = med_match.group(1).capitalize()
+        if med.lower() == "pressao":
+            title = "Remédio de Pressão"
+            med_name = "Remédio de Pressão"
+        elif med.lower() == "diabetes":
+            title = "Remédio de Diabetes"
+            med_name = "Remédio de Diabetes"
+        else:
+            title = f"Tomar {med}"
+            med_name = med
+        if dose:
+            title += f" ({dose})"
+        return {"title": title, "med_name": med_name, "dose": dose}
+
+    # Verbo de ação relevante
+    action_match = re.search(r'\b(tomar|ingestir|beber|aplicar|usar)\b', txt)
+    action = action_match.group(1).capitalize() if action_match else "Tomar"
+
+    # Nome da medicação após verbo
+    med_word_match = re.search(r'\b(?:tomar|ingestir|beber|aplicar|usar)\s+([a-zçãáâéêíóôú]+)', txt)
+    medication = med_word_match.group(1).capitalize() if med_word_match else ""
+
+    # Evita palavras comuns de virarem remédio ("meu", "o", "um", "para", "hoje", "amanha")
+    palavras_invalidas = {"meu", "minha", "o", "a", "um", "uma", "para", "hoje", "amanha", "cedo", "tarde", "noite"}
+    if medication.lower() in palavras_invalidas:
+        medication = ""
+
     if medication:
         title = f"{action} {medication}"
         if dose:
             title += f" ({dose})"
+    elif re.search(r'\b(remedio|medicacao|comprimido)\b', txt):
+        title = "Tomar Remédio"
+        medication = "Remédio"
     else:
-        title = action
+        title = ""
 
     return {"title": title, "med_name": medication, "dose": dose}
 
@@ -102,9 +128,14 @@ def add_item(titulo, transcricao_original, categoria, data_hora_alvo, tempo_chec
 
     # Usa o parser inteligente para gerar título curto e extrair medicação/dose
     parsed = parse_reminder_title(transcricao_original or titulo)
-    smart_title = parsed["title"] if parsed["title"] and parsed["title"] != "Lembrar" else titulo
+    smart_title = parsed["title"] if parsed["title"] else ""
     med_name = parsed["med_name"]
     dose = parsed["dose"]
+
+    # Se não foi título de remédio, assegura concisão para tarefas e compromissos
+    if not smart_title:
+        from ai_service import clean_concise_title
+        smart_title = clean_concise_title(titulo or transcricao_original, categoria)
 
     cursor.execute("""
     INSERT INTO items (titulo, transcricao_original, categoria, data_hora_alvo, tempo_checagem_minutos, med_name, dose)

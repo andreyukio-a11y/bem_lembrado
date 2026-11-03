@@ -84,8 +84,11 @@ Data e hora atual de referência: {current_time.strftime('%Y-%m-%d %H:%M:%S')} (
 Frase dita pelo usuário: "{transcription}"
 
 Regras:
-1. 'categoria' deve ser exatamente uma destas: "medicacao", "compromisso" ou "tarefa".
-2. 'titulo': Um resumo curto, direto e claro em português.
+1. 'categoria': deve ser exatamente uma destas: "medicacao", "compromisso" ou "tarefa".
+2. 'titulo': Um título EXTREMAMENTE CONCISO, DIRETO e OBJETIVO (máximo 3 a 5 palavras).
+   - O título deve conter APENAS o nome da atividade, demanda ou medicação (Exemplos: "Tomar Dipirona", "Reunião KPI", "Tomar Remédio", "Comprar Pão", "Consulta Cardiologista").
+   - NUNCA inclua palavras de tempo ou datas no título (ex: NUNCA coloque "às 17h", "amanhã", "ao meio-dia", "sexta-feira", "hoje"). O horário e a data pertencem exclusivamente a 'data_hora_alvo'.
+   - NUNCA inclua preâmbulos ("Tem um...", "Tenho que...", "Preciso...", "Lembrar de...", "Anotar...").
 3. 'data_hora_alvo': Calcule a data e hora ISO (YYYY-MM-DDTHH:MM:SS) pretendida a partir da frase.
 4. 'tempo_checagem_minutos': Para medicação, padrão de 15 minutos.
 
@@ -223,20 +226,85 @@ def _rule_based_extraction(transcription: str, current_time: datetime) -> dict:
 
     return _format_result(categoria, transcription, target_dt)
 
+def clean_concise_title(transcription: str, categoria: str = "tarefa") -> str:
+    """
+    Higieniza a transcrição para produzir um título extremamente conciso, direto e objetivo:
+    - Foca apenas na atividade, demanda ou medicação.
+    - Remove horários, datas e preâmbulos.
+    """
+    txt = transcription.strip()
+    txt_lower = txt.lower()
+
+    # 1. Trata medicação especificamente
+    if categoria == "medicacao":
+        dose_match = re.search(r'(\d+(?:[.,]\d+)?\s*(?:mg|ml|g|caps|comprimidos|gotas))', txt_lower)
+        dose = dose_match.group(1) if dose_match else ""
+
+        med_match = re.search(r'\b(dipirona|losartana|paracetamol|ibuprofeno|omeprazol|atenolol|metformina|sinvastatina|clonazepam|insulina|antibi[oó]tico|antial[eé]rgico|vitamina\s*[a-z0-9]*|col[ií]rio|pomada|press[aã]o|diabetes)\b', txt_lower)
+
+        if med_match:
+            med = med_match.group(1).capitalize()
+            if "press" in med.lower():
+                title = "Remédio de Pressão"
+            elif "diabet" in med.lower():
+                title = "Remédio de Diabetes"
+            else:
+                title = f"Tomar {med}"
+            if dose:
+                title += f" ({dose})"
+            return title
+
+        if re.search(r'\b(rem[eé]dio|medica[cç][aã]o|comprimido)\b', txt_lower):
+            return "Tomar Remédio"
+
+    # 2. Para compromissos e tarefas (ou medicação genérica)
+    # Remove preâmbulos e verbos introdutórios
+    t = re.sub(r'^(?:eu\s+)?(?:tem(?: um| uma)?|tenho que|preciso|lembrar(?:-me)? de|me lembr(?:a|e) de|lembrete de|anota(?:r)?|marcar|quero|agendar|nao esquecer de|favor)\s+', '', txt, flags=re.IGNORECASE)
+
+    # Remove termos temporais, dias da semana e datas (com e sem acento)
+    patterns_to_remove = [
+        r'\b(?:para|na|no|em|[aàá]s|ao|de|pela)?\s*(?:hoje|amanh[aã]|depois\s+de\s+amanh[aã])\b',
+        r'\b(?:ao|ao meio|meio)[\s-]dia\b',
+        r'\b(?:a|a meia|meia)[\s-]noite\b',
+        r'\b(?:de|pela|na|a)?\s*(?:manh[aã]|tarde|noite|madrugada)\b',
+        r'\b(?:do dia de hoje|nesta semana|neste m[eê]s)\b',
+        r'\b(?:na|nesta|pr[oó]xim[ao])?\s*(?:segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo)(?:-feira)?\b',
+        r'\b[aàá]s\s*\d{1,2}(?:[h:]\d{2})?(?:\s*(?:da tarde|da noite|da manh[aã]))?\b',
+        r'\b\d{1,2}\s*h(?:oras?)?\b',
+        r'\bdaqui\s+a\s+\d+\s*(?:minutos?|horas?|dias?)\b',
+        r'\bem\s+\d+\s*(?:minutos?|horas?|dias?)\b',
+        r'\bpara\s+o\s+dia\s+\d{1,2}(?:\s+de\s+[a-z]+)?\b',
+    ]
+    for p in patterns_to_remove:
+        t = re.sub(p, '', t, flags=re.IGNORECASE)
+
+    # Remove adjetivos vazios
+    t = re.sub(r'\b(importante|urgente)\b', '', t, flags=re.IGNORECASE)
+
+    # Limpa conectivos e preposições que sobraram no começo ou fim repetidamente
+    for _ in range(3):
+        t = re.sub(r'^(?:para|de|em|a|[aàá]s|ao|com|sobre|na|no|nas|nos|da|do|das|dos)\s+', '', t.strip(), flags=re.IGNORECASE)
+        t = re.sub(r'\s+(?:para|de|em|a|[aàá]s|ao|com|sobre|na|no|nas|nos|da|do|das|dos)$', '', t.strip(), flags=re.IGNORECASE)
+        t = re.sub(r'\s+', ' ', t).strip()
+
+    # Se sobrou algo relevante
+    if t:
+        words = t.split()
+        if len(words) > 5:
+            t = " ".join(words[:5])
+            t = re.sub(r'\s+(?:para|de|em|a|[aàá]s|ao|com|sobre|na|no|nas|nos|da|do|das|dos)$', '', t, flags=re.IGNORECASE)
+        return t[0].upper() + t[1:]
+
+    if categoria == "medicacao":
+        return "Tomar Remédio"
+    elif categoria == "compromisso":
+        return "Compromisso Agendado"
+    else:
+        return "Lembrete de Tarefa"
+
 def _format_result(categoria: str, transcription: str, target_dt: datetime) -> dict:
     """Higieniza o título e retorna o dicionário formatado."""
-    text_lower = transcription.lower()
-    
-    limpo = re.sub(r'^(me lembra de|lembrar de|lembrete de|anota|anotar|marcar|quero|tenho que|preciso|agendar)\s+', '', text_lower, flags=re.IGNORECASE)
-    
-    titulo = limpo.strip()
-    if titulo:
-        titulo = titulo[0].upper() + titulo[1:]
-    else:
-        titulo = transcription.capitalize()
-
-    if len(titulo) > 55:
-        titulo = titulo[:52] + "..."
+    titulo = clean_concise_title(transcription, categoria)
 
     return {
         "categoria": categoria,
