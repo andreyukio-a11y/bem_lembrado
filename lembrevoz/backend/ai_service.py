@@ -50,6 +50,7 @@ def clean_repetitive_text(text: str) -> str:
 def classify_and_extract(transcription: str, current_time: datetime = None) -> dict:
     """
     Recebe a transcrição em linguagem natural, higieniza e extrai categoria, horário e título.
+    Suporta 1 ou múltiplas intenções/atividades em uma única fala.
     """
     if current_time is None:
         current_time = datetime.now()
@@ -61,12 +62,26 @@ def classify_and_extract(transcription: str, current_time: datetime = None) -> d
         try:
             result = _call_gemini_api(cleaned_transcription, current_time)
             result["transcricao_limpa"] = cleaned_transcription
+            # Garante formato com 'itens'
+            if "itens" not in result or not result["itens"]:
+                result["itens"] = [{
+                    "categoria": result.get("categoria", "tarefa"),
+                    "titulo": result.get("titulo", cleaned_transcription),
+                    "data_hora_alvo": result.get("data_hora_alvo"),
+                    "tempo_checagem_minutos": result.get("tempo_checagem_minutos", 15)
+                }]
+            # Retrocompatibilidade
+            first = result["itens"][0]
+            result["categoria"] = first.get("categoria", "tarefa")
+            result["titulo"] = first.get("titulo", cleaned_transcription)
+            result["data_hora_alvo"] = first.get("data_hora_alvo")
+            result["tempo_checagem_minutos"] = first.get("tempo_checagem_minutos", 15)
             return result
         except Exception as e:
             print(f"[Aviso] Falha na chamada da API Gemini ({e}). Usando analisador inteligente local.")
 
-    # 2. Analisador local inteligente (Zero dependências externas)
-    result = _rule_based_extraction(cleaned_transcription, current_time)
+    # 2. Analisador local inteligente (Zero dependências externas, suporta múltiplos itens)
+    result = _rule_based_multiple_extraction(cleaned_transcription, current_time)
     result["transcricao_limpa"] = cleaned_transcription
     return result
 
@@ -78,26 +93,30 @@ def _call_gemini_api(transcription: str, current_time: datetime) -> dict:
     
     prompt = f"""
 Você é o assistente inteligente do aplicativo 'Bem Lembrado'.
-Analise o comando de voz do usuário e extraia as informações estruturadas.
+Analise o comando de voz do usuário. O usuário pode ter falado UMA ou VÁRIAS atividades/tarefas/remédios em uma única frase contínua (exemplo: "tenho uma reunião às 14h, preciso comprar pão e tomar o remédio às 18h").
+
+Regras:
+1. Se houver mais de uma atividade, separe-as em elementos distintos na lista 'itens'.
+2. Se houver apenas uma atividade, 'itens' terá 1 elemento.
+3. Para cada item:
+   - 'categoria': exatamente uma destas: "medicacao", "compromisso" ou "tarefa".
+   - 'titulo': Extremamente conciso e direto (máximo 3 a 5 palavras). Apenas o nome da tarefa/remédio (ex: "Tomar Dipirona", "Reunião KPI", "Comprar Pão", "Limpar a Casa"). NUNCA coloque datas ou horários no título.
+   - 'data_hora_alvo': Data e hora no formato ISO (YYYY-MM-DDTHH:MM:SS) calculadas a partir da fala (ou null se não informada).
+   - 'tempo_checagem_minutos': 15 para medicação.
 
 Data e hora atual de referência: {current_time.strftime('%Y-%m-%d %H:%M:%S')} (Dia da semana: {current_time.strftime('%A')}).
 Frase dita pelo usuário: "{transcription}"
 
-Regras:
-1. 'categoria': deve ser exatamente uma destas: "medicacao", "compromisso" ou "tarefa".
-2. 'titulo': Um título EXTREMAMENTE CONCISO, DIRETO e OBJETIVO (máximo 3 a 5 palavras).
-   - O título deve conter APENAS o nome da atividade, demanda ou medicação (Exemplos: "Tomar Dipirona", "Reunião KPI", "Tomar Remédio", "Comprar Pão", "Consulta Cardiologista").
-   - NUNCA inclua palavras de tempo ou datas no título (ex: NUNCA coloque "às 17h", "amanhã", "ao meio-dia", "sexta-feira", "hoje"). O horário e a data pertencem exclusivamente a 'data_hora_alvo'.
-   - NUNCA inclua preâmbulos ("Tem um...", "Tenho que...", "Preciso...", "Lembrar de...", "Anotar...").
-3. 'data_hora_alvo': Calcule a data e hora ISO (YYYY-MM-DDTHH:MM:SS) pretendida a partir da frase.
-4. 'tempo_checagem_minutos': Para medicação, padrão de 15 minutos.
-
 Responda APENAS com um objeto JSON válido:
 {{
-  "categoria": "medicacao" | "compromisso" | "tarefa",
-  "titulo": "string",
-  "data_hora_alvo": "YYYY-MM-DDTHH:MM:SS" ou null,
-  "tempo_checagem_minutos": 15
+  "itens": [
+    {{
+      "categoria": "medicacao" | "compromisso" | "tarefa",
+      "titulo": "string",
+      "data_hora_alvo": "YYYY-MM-DDTHH:MM:SS" ou null,
+      "tempo_checagem_minutos": 15
+    }}
+  ]
 }}
 """
     payload = {
@@ -113,12 +132,59 @@ Responda APENAS com um objeto JSON válido:
             res_body = response.read().decode('utf-8')
             data = json.loads(res_body)
             raw_text = data['candidates'][0]['content']['parts'][0]['text']
-            return json.loads(raw_text)
+            parsed = json.loads(raw_text)
+            if isinstance(parsed, list):
+                return {"itens": parsed}
+            return parsed
         else:
             raise RuntimeError(f"Erro Gemini HTTP {response.status}")
 
-def _rule_based_extraction(transcription: str, current_time: datetime) -> dict:
-    """Analisador inteligente local avançado com normalização de acentos."""
+def split_multiple_intents(text: str) -> list:
+    """Divide um fluxo de fala contínuo com múltiplos itens em segmentos independentes."""
+    if not text or not text.strip():
+        return []
+
+    s = text.strip()
+
+    # 1. Quebras por pontuação ou conectivos de sequência
+    s = re.sub(r'\s*(?:;\s*|\.\s+)\s*', ' ||| ', s)
+    s = re.sub(r'\s*(?:,\s*|\s+)(?:e\s+depois|depois|em\s+seguida|al[eé]m\s+disso|e\s+tamb[eé]m)\s+', ' ||| ', s, flags=re.IGNORECASE)
+
+    # 2. Quebras por novas orações de ação com conjunção
+    s = re.sub(
+        r'\s*(?:,\s*|\s+e\s+|\s+a[ií]\s+)(?=(?:eu\s+)?(?:tenho que|preciso|vou|quero|lembrar de|tomar|fazer|limpar|comprar|ir\s+ao?|consulta|reuni[aã]o))\b',
+        ' ||| ',
+        s,
+        flags=re.IGNORECASE
+    )
+
+    parts = [p.strip() for p in s.split('|||') if p.strip()]
+    valid_parts = [p for p in parts if len(p) >= 3]
+    return valid_parts if valid_parts else [text.strip()]
+
+def _rule_based_multiple_extraction(transcription: str, current_time: datetime) -> dict:
+    """Extrai múltiplos itens localmente a partir de uma fala dividida."""
+    intents = split_multiple_intents(transcription)
+
+    items = []
+    for piece in intents:
+        item_data = _rule_based_single_extraction(piece, current_time)
+        items.append(item_data)
+
+    if not items:
+        items = [_rule_based_single_extraction(transcription, current_time)]
+
+    first = items[0]
+    return {
+        "itens": items,
+        "categoria": first.get("categoria", "tarefa"),
+        "titulo": first.get("titulo", transcription),
+        "data_hora_alvo": first.get("data_hora_alvo"),
+        "tempo_checagem_minutos": first.get("tempo_checagem_minutos", 15)
+    }
+
+def _rule_based_single_extraction(transcription: str, current_time: datetime) -> dict:
+    """Analisador inteligente local avançado para um único item com normalização de acentos."""
     text_norm = norm(transcription)
     
     # 1. Identificação de Categoria
@@ -259,7 +325,7 @@ def clean_concise_title(transcription: str, categoria: str = "tarefa") -> str:
 
     # 2. Para compromissos e tarefas (ou medicação genérica)
     # Remove preâmbulos e verbos introdutórios
-    t = re.sub(r'^(?:eu\s+)?(?:tem(?: um| uma)?|tenho que|preciso|lembrar(?:-me)? de|me lembr(?:a|e) de|lembrete de|anota(?:r)?|marcar|quero|agendar|nao esquecer de|favor)\s+', '', txt, flags=re.IGNORECASE)
+    t = re.sub(r'^(?:eu\s+)?(?:tem(?: um| uma)?|tenho(?: um| uma| que)?|preciso(?: de)?|vou|quero|lembrar(?:-me)? de|me lembr(?:a|e) de|lembrete de|anota(?:r)?|marcar|agendar|nao esquecer de|favor)\s+', '', txt, flags=re.IGNORECASE)
 
     # Remove termos temporais, dias da semana e datas (com e sem acento)
     patterns_to_remove = [

@@ -544,12 +544,24 @@ function initApp() {
 
       const result = await response.json();
       if (result.success) {
-        if (window.soundManager) window.soundManager.playSuccessChime();
-        if (voiceStatus) voiceStatus.textContent = "Lembrete criado com sucesso!";
+        const count = result.total_created || 1;
+        const msg = count > 1 
+          ? `✓ ${count} lembretes criados com sucesso!` 
+          : "✓ Lembrete criado com sucesso!";
+
+        if (window.soundManager) {
+          window.soundManager.playSuccessChime();
+          if (window.soundManager.voiceFeedbackEnabled) {
+            window.soundManager.speak(count > 1 
+              ? `Entendido! Criei ${count} lembretes para você.` 
+              : "Lembrete anotado com sucesso!");
+          }
+        }
+        if (voiceStatus) voiceStatus.textContent = msg;
         if (liveTranscription) liveTranscription.textContent = "";
         setTimeout(() => {
           if (voiceStatus) voiceStatus.textContent = "Toque no microfone para falar";
-        }, 2500);
+        }, 3000);
         loadItems();
       }
     } catch (e) {

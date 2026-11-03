@@ -39,22 +39,38 @@ def process_voice(req: VoiceRequest):
     if not req.transcription or not req.transcription.strip():
         raise HTTPException(status_code=400, detail="A transcrição não pode ser vazia.")
     
-    # 1. Classificação e extração inteligente
+    # 1. Classificação e extração inteligente (suporta 1 ou múltiplos lembretes)
     extracted = classify_and_extract(req.transcription)
     clean_text = extracted.get("transcricao_limpa", req.transcription)
     
-    # 2. Persistência no banco SQLite
-    item_id = add_item(
-        titulo=extracted.get("titulo", clean_text),
-        transcricao_original=clean_text,
-        categoria=extracted.get("categoria", "tarefa"),
-        data_hora_alvo=extracted.get("data_hora_alvo"),
-        tempo_checagem=extracted.get("tempo_checagem_minutos", 15)
-    )
+    items_to_create = extracted.get("itens", [])
+    if not items_to_create:
+        items_to_create = [{
+            "titulo": extracted.get("titulo", clean_text),
+            "categoria": extracted.get("categoria", "tarefa"),
+            "data_hora_alvo": extracted.get("data_hora_alvo"),
+            "tempo_checagem_minutos": extracted.get("tempo_checagem_minutos", 15)
+        }]
+
+    # 2. Persistência de cada item no banco SQLite
+    created_items = []
+    for it in items_to_create:
+        item_id = add_item(
+            titulo=it.get("titulo", clean_text),
+            transcricao_original=clean_text,
+            categoria=it.get("categoria", "tarefa"),
+            data_hora_alvo=it.get("data_hora_alvo"),
+            tempo_checagem=it.get("tempo_checagem_minutos", 15)
+        )
+        it_copy = dict(it)
+        it_copy["item_id"] = item_id
+        created_items.append(it_copy)
     
     return {
         "success": True,
-        "item_id": item_id,
+        "total_created": len(created_items),
+        "items": created_items,
+        "item_id": created_items[0]["item_id"] if created_items else None,
         "data": extracted
     }
 
