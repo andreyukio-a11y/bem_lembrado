@@ -622,6 +622,8 @@ function initApp() {
   const btnCloseNotifModal = document.getElementById("btn-close-notif-modal");
   const notifModalItemTitle = document.getElementById("notif-modal-item-title");
   let activeNotifItemId = null;
+
+  function openEscalationModal(item) {
     activeEscalationItem = item;
     if (escalationMedName) escalationMedName.textContent = item.titulo;
     if (escalationModal) escalationModal.style.display = "flex";
