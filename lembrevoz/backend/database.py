@@ -131,14 +131,17 @@ def init_db():
 
     conn.close()
 
-def list_items(usuario_id=None):
+def list_items(usuario_id=None, dependente_id=None):
     conn = get_connection()
     cursor = conn.cursor()
-    # Se for cuidador, exibe os itens do idoso para acompanhamento ativo
-    if usuario_id == 'cuidador':
+    # Se o cuidador estiver visualizando seus itens e os do dependente
+    if dependente_id and usuario_id:
+        cursor.execute("SELECT * FROM items WHERE usuario_id IN (?, ?) ORDER BY fixado DESC, id DESC", (usuario_id, dependente_id))
+    elif usuario_id == 'cuidador':
         cursor.execute("SELECT * FROM items WHERE usuario_id IN ('idoso', 'padrao') ORDER BY fixado DESC, id DESC")
     elif usuario_id and usuario_id != 'todos':
-        cursor.execute("SELECT * FROM items WHERE usuario_id = ? ORDER BY fixado DESC, id DESC", (usuario_id,))
+        # Se usuário específico, busca os itens desse usuário (ou legados 'idoso'/'padrao')
+        cursor.execute("SELECT * FROM items WHERE usuario_id = ? OR (usuario_id IN ('idoso', 'padrao') AND ? IN ('idoso', 'default')) ORDER BY fixado DESC, id DESC", (usuario_id, usuario_id))
     else:
         cursor.execute("SELECT * FROM items ORDER BY fixado DESC, id DESC")
     rows = cursor.fetchall()

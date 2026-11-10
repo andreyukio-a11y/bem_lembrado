@@ -13,21 +13,17 @@
 <body>
   <div id="app-container">
     
-    <!-- Top Header com Logo Oficial e Botões de Ação -->
+    <!-- Top Header com Logo Oficial, Badge de Perfil e Menu -->
     <header>
       <div class="logo-area">
         <img src="assets/logo-light-transparent.png" alt="Bem Lembrado" class="header-logo logo-light">
         <img src="assets/logo-dark-transparent.png" alt="Bem Lembrado" class="header-logo logo-dark">
-        <button id="btn-user-profile" class="btn-profile-badge" title="Trocar Perfil">
-          <span id="profile-badge-icon">👵</span> <span id="profile-badge-name">Dona Maria</span>
-        </button>
       </div>
       <div class="header-actions">
-        <button id="btn-open-report" class="btn-header-icon" title="Relatório de Adesão à Medicação">
-          <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14h-2v-4h2v4zm0-6h-2V7h2v4zm4 6h-2V9h2v8zm-8 0H6v-2h2v2z"/></svg>
-        </button>
-        <button id="btn-toggle-acessivel" class="btn-header-icon" title="Alternar Visão Conforto (Alto Contraste)">
-          <svg viewBox="0 0 24 24"><path d="M12 2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm9 7h-6v13h-2v-6h-2v6H9V9H3V7h18v2z"/></svg>
+        <button id="btn-user-profile" class="btn-profile-badge" title="Trocar ou Gerenciar Perfis">
+          <span id="profile-badge-icon">👵</span>
+          <span id="profile-badge-name">Dona Maria</span>
+          <span class="profile-badge-arrow">▾</span>
         </button>
         <button id="btn-open-settings" class="btn-header-icon" title="Abrir Configurações">
           <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
@@ -38,8 +34,11 @@
     <!-- Banner Modo Cuidador -->
     <div id="caregiver-banner" class="caregiver-banner" style="display: none;">
       <div class="caregiver-banner-content">
-        <span>🩺 <strong>Modo Cuidador Ativo:</strong> Acompanhando Dona Maria</span>
-        <button id="btn-caregiver-quick-msg" class="btn-caregiver-zap">📱 WhatsApp Cuidador</button>
+        <span id="caregiver-banner-title">🩺 <strong>Modo Cuidador:</strong> Acompanhando Dona Maria</span>
+        <div class="caregiver-banner-actions">
+          <button id="btn-caregiver-quick-msg" class="btn-caregiver-zap">📱 WhatsApp</button>
+          <button id="btn-caregiver-report" class="btn-caregiver-report" title="Ver relatório de adesão">📊 Adesão</button>
+        </div>
       </div>
     </div>
 
@@ -196,22 +195,39 @@
 
         <!-- Grupo: Perfis de Uso -->
         <div class="settings-group">
-          <div class="settings-group-title">Perfil de Uso do Aplicativo</div>
-          <div class="settings-option">
+          <div class="settings-group-title">Perfil e Usuários</div>
+          <div class="settings-option" id="opt-profile-manage">
             <div class="settings-option-text">
-              <h4>Perfil Ativo</h4>
-              <p id="profile-desc">Uso Pessoal Autônomo</p>
+              <h4>Perfil: <span id="settings-current-profile-name" style="color: var(--primary);">Dona Maria</span></h4>
+              <p id="profile-desc">Modo Simplificado / Idoso</p>
             </div>
-            <select id="select-profile" style="padding: 6px; border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-primary);">
-              <option value="pessoal">Pessoal / Autônomo</option>
-              <option value="cuidador">Modo Cuidador / Acompanhamento</option>
-              <option value="simplificado">Modo Simplificado</option>
-            </select>
+            <button id="btn-settings-open-profiles" class="btn-caregiver-zap" style="background: var(--primary); font-size: 0.8rem; padding: 6px 10px;">
+              Trocar Perfil ➔
+            </button>
+          </div>
+        </div>
+
+        <!-- Grupo: Recursos e Apresentação -->
+        <div class="settings-group">
+          <div class="settings-group-title">Recursos do Aplicativo</div>
+          <div class="settings-option" id="opt-settings-report" style="cursor: pointer;">
+            <div class="settings-option-text">
+              <h4>Relatório de Adesão à Medicação</h4>
+              <p>Histórico e estatísticas de remédios tomados</p>
+            </div>
+            <span style="font-size: 1.25rem;">📊</span>
+          </div>
+          <div class="settings-option" id="opt-settings-tutorial" style="cursor: pointer;">
+            <div class="settings-option-text">
+              <h4>Apresentação e Tutorial</h4>
+              <p>Rever o carrossel de introdução e guia das funções</p>
+            </div>
+            <span style="font-size: 1.25rem;">✨</span>
           </div>
         </div>
 
         <div style="text-align: center; color: var(--text-secondary); font-size: 0.78rem; margin-top: 20px;">
-          Bem Lembrado v1.2 · Inovações para Engenharia (ESMA002-23)
+          Bem Lembrado v1.3 · Inovações para Engenharia (ESMA002-23)
         </div>
       </div>
     </div>
@@ -285,37 +301,22 @@
         </div>
       </div>
     </div>
-    <!-- Modal de Seleção Rápida de Perfil (Opção A) -->
+    <!-- Modal de Seleção e Gerenciamento Dinâmico de Perfis -->
     <div id="profile-modal" class="modal-overlay" style="display: none;">
       <div class="modal-content">
         <div class="modal-header">
-          <h3>Quem está usando agora?</h3>
+          <h3>Perfis de Usuário</h3>
           <button id="btn-close-profile-modal" class="btn-close-modal">&times;</button>
         </div>
-        <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 16px;">
-          Selecione o perfil para ver os lembretes adequados:
+        <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 14px;">
+          Selecione quem está usando ou adicione um novo perfil:
         </p>
-        <div class="profile-options-grid">
-          <button class="btn-profile-card active" data-profile-id="idoso" data-profile-name="Dona Maria" data-profile-role="idoso">
-            <span class="profile-icon">👵</span>
-            <div class="profile-info">
-              <strong>Dona Maria (Idosa)</strong>
-              <small>Visão simplificada, fontes claras e alarmes ativos</small>
-            </div>
-          </button>
-          <button class="btn-profile-card" data-profile-id="cuidador" data-profile-name="Carlos (Cuidador)" data-profile-role="cuidador">
-            <span class="profile-icon">🩺</span>
-            <div class="profile-info">
-              <strong>Carlos (Cuidador / Família)</strong>
-              <small>Acompanha os remédios de Dona Maria e recebe alertas</small>
-            </div>
-          </button>
-          <button class="btn-profile-card" data-profile-id="pessoal" data-profile-name="Meu Perfil" data-profile-role="pessoal">
-            <span class="profile-icon">👤</span>
-            <div class="profile-info">
-              <strong>Meu Perfil / Visitante</strong>
-              <small>Uso pessoal com tarefas, rotinas e compromissos</small>
-            </div>
+        <div id="profiles-dynamic-list" class="profile-options-grid">
+          <!-- Preenchido dinamicamente pelo JavaScript com os perfis do usuário -->
+        </div>
+        <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border);">
+          <button id="btn-add-profile-trigger" class="btn-primary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <span>➕</span> Cadastrar Novo Perfil
           </button>
         </div>
       </div>
@@ -374,6 +375,121 @@
             </div>
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Tela de Boas-Vindas / Carrossel de Apresentação e Cadastro de Perfil -->
+    <div id="onboarding-overlay" class="onboarding-overlay" style="display: none;">
+      <div class="onboarding-card">
+        
+        <!-- Etapa 1: Carrossel Explicativo do Projeto -->
+        <div id="onboarding-step-carousel" class="onboarding-step">
+          <div class="carousel-container">
+            <!-- Slide 0 -->
+            <div class="carousel-slide active" data-slide="0">
+              <div class="slide-icon">🎙️✨</div>
+              <h2>Bem-vindo ao Bem Lembrado!</h2>
+              <p class="slide-subtitle">Organização natural por voz feita para todos.</p>
+              <p class="slide-desc">Diga adeus a telas cheias de opções e botões difíceis. Com apenas um toque no microfone, fale no seu ritmo do jeito que você pensa.</p>
+            </div>
+            <!-- Slide 1 -->
+            <div class="carousel-slide" data-slide="1">
+              <div class="slide-icon">🧠📋</div>
+              <h2>Fale Tudo em um Só Áudio</h2>
+              <p class="slide-subtitle">Inteligência que separa cada demanda.</p>
+              <p class="slide-desc">Pode falar seu dia corrido: reuniões com início e fim (<em>"das 14h às 16h"</em>), remédios e tarefas. O aplicativo separa tudo automaticamente em blocos!</p>
+            </div>
+            <!-- Slide 2 -->
+            <div class="carousel-slide" data-slide="2">
+              <div class="slide-icon">💊⏰</div>
+              <h2>Cuidado Especial com Remédios</h2>
+              <p class="slide-subtitle">Avisos suaves e checagem de segurança.</p>
+              <p class="slide-desc">Remédios tocam sons suaves e verificam minutos depois se você já tomou. Nada de alarmes estridentes que causam susto ou ansiedade.</p>
+            </div>
+            <!-- Slide 3 -->
+            <div class="carousel-slide" data-slide="3">
+              <div class="slide-icon">🤝📱</div>
+              <h2>Tranquilidade para Quem Cuida</h2>
+              <p class="slide-subtitle">Conexão cuidador e dependente.</p>
+              <p class="slide-desc">Se uma medicação importante não for confirmada após as tentativas, o responsável de confiança pode ser avisado no WhatsApp para checar o familiar.</p>
+            </div>
+          </div>
+
+          <!-- Indicadores de slide (Dots) -->
+          <div class="carousel-dots" id="carousel-dots">
+            <span class="dot active" data-dot="0"></span>
+            <span class="dot" data-dot="1"></span>
+            <span class="dot" data-dot="2"></span>
+            <span class="dot" data-dot="3"></span>
+          </div>
+
+          <!-- Controles do Carrossel -->
+          <div class="carousel-actions">
+            <button id="btn-skip-carousel" class="btn-carousel-skip">Pular</button>
+            <button id="btn-next-carousel" class="btn-carousel-next">Avançar ➔</button>
+          </div>
+        </div>
+
+        <!-- Etapa 2: Cadastro do Perfil -->
+        <div id="onboarding-step-register" class="onboarding-step" style="display: none;">
+          <h2 id="register-title">Criar Novo Perfil</h2>
+          <p class="slide-subtitle">Sem senhas ou burocracia. Escolha como vai usar o aplicativo:</p>
+
+          <div class="register-form">
+            <div class="form-group">
+              <label for="reg-user-name">Como você quer ser chamado(a)?</label>
+              <input type="text" id="reg-user-name" placeholder="Ex: Dona Maria, Carlos, Pedro..." autocomplete="off">
+            </div>
+
+            <label class="form-label-section">Escolha o Tipo de Perfil:</label>
+            <div class="role-selection-grid">
+              <!-- Opção 1: Idoso / Simplificado -->
+              <div class="role-choice-card selected" data-role="simplificado">
+                <span class="role-icon">👵</span>
+                <div class="role-info">
+                  <strong>Modo Simplificado / Idoso</strong>
+                  <p>Botões grandes, microfone em destaque, avisos de remédio e som suave.</p>
+                </div>
+              </div>
+
+              <!-- Opção 2: Cuidador / Responsável -->
+              <div class="role-choice-card" data-role="cuidador">
+                <span class="role-icon">🩺</span>
+                <div class="role-info">
+                  <strong>Responsável / Cuidador</strong>
+                  <p>Acompanhe um familiar, receba relatórios e alertas no WhatsApp.</p>
+                </div>
+              </div>
+
+              <!-- Opção 3: Pessoal / Comum -->
+              <div class="role-choice-card" data-role="pessoal">
+                <span class="role-icon">👤</span>
+                <div class="role-info">
+                  <strong>Uso Pessoal / Comum</strong>
+                  <p>Organização autônoma: compromissos com horário, reuniões e tarefas.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Campos Condicionais para Cuidador -->
+            <div id="caregiver-extra-fields" class="caregiver-extra-fields" style="display: none;">
+              <div class="form-group">
+                <label for="reg-dependent-name">Nome da pessoa que você cuida:</label>
+                <input type="text" id="reg-dependent-name" placeholder="Ex: Dona Maria" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label for="reg-caregiver-phone">Seu WhatsApp (para receber alertas):</label>
+                <input type="tel" id="reg-caregiver-phone" placeholder="Ex: 11999998888">
+              </div>
+            </div>
+
+            <div class="register-actions">
+              <button id="btn-cancel-register" class="btn-cancel-reg" style="display: none;">Cancelar</button>
+              <button id="btn-submit-register" class="btn-submit-reg">🚀 Salvar e Começar</button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 

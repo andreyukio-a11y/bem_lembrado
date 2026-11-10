@@ -149,6 +149,466 @@ function initApp() {
   const btnCloseProfileModal = document.getElementById("btn-close-profile-modal");
   const caregiverBanner = document.getElementById("caregiver-banner");
   const btnCaregiverQuickMsg = document.getElementById("btn-caregiver-quick-msg");
+  const btnCaregiverReport = document.getElementById("btn-caregiver-report");
+
+  // Onboarding & Cadastro Overlay
+  const onboardingOverlay = document.getElementById("onboarding-overlay");
+  const onboardingStepCarousel = document.getElementById("onboarding-step-carousel");
+  const onboardingStepRegister = document.getElementById("onboarding-step-register");
+  const carouselSlides = document.querySelectorAll(".carousel-slide");
+  const carouselDots = document.querySelectorAll(".carousel-dots .dot");
+  const btnNextCarousel = document.getElementById("btn-next-carousel");
+  const btnSkipCarousel = document.getElementById("btn-skip-carousel");
+  const regUserName = document.getElementById("reg-user-name");
+  const regDependentName = document.getElementById("reg-dependent-name");
+  const regCaregiverPhone = document.getElementById("reg-caregiver-phone");
+  const caregiverExtraFields = document.getElementById("caregiver-extra-fields");
+  const btnSubmitRegister = document.getElementById("btn-submit-register");
+  const btnCancelRegister = document.getElementById("btn-cancel-register");
+  const roleChoiceCards = document.querySelectorAll(".role-choice-card");
+  const profilesDynamicList = document.getElementById("profiles-dynamic-list");
+  const btnAddProfileTrigger = document.getElementById("btn-add-profile-trigger");
+  const btnSettingsOpenProfiles = document.getElementById("btn-settings-open-profiles");
+  const optSettingsReport = document.getElementById("opt-settings-report");
+  const optSettingsTutorial = document.getElementById("opt-settings-tutorial");
+
+  // Sistema Dinâmico de Perfis
+  const DEFAULT_PROFILES = [
+    {
+      id: "idoso",
+      name: "Dona Maria",
+      role: "simplificado",
+      icon: "👵",
+      fontSize: "grande",
+      dependenteName: "",
+      cuidadorPhone: ""
+    },
+    {
+      id: "cuidador",
+      name: "Carlos (Cuidador)",
+      role: "cuidador",
+      icon: "🩺",
+      fontSize: "normal",
+      dependenteName: "Dona Maria",
+      cuidadorPhone: ""
+    },
+    {
+      id: "pessoal",
+      name: "Meu Perfil",
+      role: "pessoal",
+      icon: "👤",
+      fontSize: "normal",
+      dependenteName: "",
+      cuidadorPhone: ""
+    }
+  ];
+
+  function getStoredProfiles() {
+    try {
+      const raw = localStorage.getItem("bemlembrado_profiles_list_v3");
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length > 0) return arr;
+      }
+    } catch (e) {}
+    return DEFAULT_PROFILES;
+  }
+
+  function saveStoredProfiles(list) {
+    localStorage.setItem("bemlembrado_profiles_list_v3", JSON.stringify(list));
+  }
+
+  let profilesList = getStoredProfiles();
+  let activeProfileId = localStorage.getItem("bemlembrado_active_id_v3") || profilesList[0].id;
+  let activeProfile = profilesList.find(p => p.id === activeProfileId) || profilesList[0];
+
+  let selectedRegisterRole = "simplificado";
+  let currentSlideIndex = 0;
+
+  function applySettings() {
+    // 1. Visão Conforto / Alto Contraste
+    if (appSettings.modoConforto) {
+      document.body.classList.add("modo-acessivel");
+      if (chkSettingsConforto) chkSettingsConforto.checked = true;
+    } else {
+      document.body.classList.remove("modo-acessivel");
+      if (chkSettingsConforto) chkSettingsConforto.checked = false;
+    }
+
+    // 2. Tamanho de Fonte (Escalabilidade na raiz html e no body)
+    document.documentElement.classList.remove("font-grande", "font-extra-grande");
+    document.body.classList.remove("font-grande", "font-extra-grande");
+    if (appSettings.fontSize === "grande") {
+      document.documentElement.classList.add("font-grande");
+      document.body.classList.add("font-grande");
+    } else if (appSettings.fontSize === "extra-grande") {
+      document.documentElement.classList.add("font-extra-grande");
+      document.body.classList.add("font-extra-grande");
+    }
+    if (selectFontSize) selectFontSize.value = appSettings.fontSize;
+    if (inputCuidadorPhone) inputCuidadorPhone.value = activeProfile.cuidadorPhone || appSettings.cuidadorPhone;
+
+    // 3. Diferenciação Visual do Modo
+    document.body.classList.remove("modo-simplificado", "modo-cuidador", "modo-pessoal");
+    if (activeProfile.role === "simplificado") {
+      document.body.classList.add("modo-simplificado");
+      if (voiceStatus && !voiceStatus.classList.contains("recording")) {
+        voiceStatus.textContent = "👉 Toque no microfone para falar seu lembrete";
+      }
+    } else if (activeProfile.role === "cuidador") {
+      document.body.classList.add("modo-cuidador");
+      if (voiceStatus && !voiceStatus.classList.contains("recording")) {
+        voiceStatus.textContent = "Grave um lembrete ou instrução de voz";
+      }
+    } else {
+      document.body.classList.add("modo-pessoal");
+      if (voiceStatus && !voiceStatus.classList.contains("recording")) {
+        voiceStatus.textContent = "Toque no microfone para falar";
+      }
+    }
+
+    // 4. Header Badges
+    if (profileBadgeName) profileBadgeName.textContent = activeProfile.name;
+    if (profileBadgeIcon) profileBadgeIcon.textContent = activeProfile.icon || (activeProfile.role === "simplificado" ? "👵" : (activeProfile.role === "cuidador" ? "🩺" : "👤"));
+
+    const settingsCurrentProfileName = document.getElementById("settings-current-profile-name");
+    if (settingsCurrentProfileName) {
+      settingsCurrentProfileName.textContent = `${activeProfile.icon || ''} ${activeProfile.name}`;
+    }
+
+    // 5. Banner do Cuidador
+    if (caregiverBanner) {
+      if (activeProfile.role === "cuidador") {
+        caregiverBanner.style.display = "block";
+        const bannerTitle = document.getElementById("caregiver-banner-title");
+        if (bannerTitle) {
+          const depName = activeProfile.dependenteName || "Dona Maria";
+          bannerTitle.innerHTML = `🩺 <strong>Modo Cuidador:</strong> Acompanhando ${depName}`;
+        }
+      } else {
+        caregiverBanner.style.display = "none";
+      }
+    }
+
+    if (chkSettingsSwipe) chkSettingsSwipe.checked = appSettings.swipeEnabled;
+    if (chkSettingsTrash) chkSettingsTrash.checked = appSettings.trashEnabled;
+    
+    if (profileDesc) {
+      if (activeProfile.role === "cuidador") {
+        profileDesc.textContent = `Acompanhando ${activeProfile.dependenteName || 'familiar'} (Alertas & Relatórios)`;
+      } else if (activeProfile.role === "simplificado") {
+        profileDesc.textContent = "Visão Simplificada com Botões e Fontes Grandes";
+      } else {
+        profileDesc.textContent = "Uso Pessoal Autônomo";
+      }
+    }
+
+    if (window.soundManager) {
+      window.soundManager.voiceFeedbackEnabled = appSettings.voiceFeedbackEnabled;
+    }
+  }
+  applySettings();
+
+  // Listener para Tamanho de Fonte
+  if (selectFontSize) {
+    selectFontSize.addEventListener("change", (e) => {
+      appSettings.fontSize = e.target.value;
+      activeProfile.fontSize = e.target.value;
+      localStorage.setItem("bemlembrado_fontsize", appSettings.fontSize);
+      saveStoredProfiles(profilesList);
+      applySettings();
+    });
+  }
+
+  // Listener para Telefone do Cuidador
+  if (inputCuidadorPhone) {
+    inputCuidadorPhone.addEventListener("change", (e) => {
+      const val = e.target.value.trim();
+      appSettings.cuidadorPhone = val;
+      activeProfile.cuidadorPhone = val;
+      localStorage.setItem("bemlembrado_cuidador_phone", val);
+      saveStoredProfiles(profilesList);
+    });
+  }
+
+  // Renderiza Lista Dinâmica de Perfis
+  function renderProfilesModalList() {
+    if (!profilesDynamicList) return;
+    profilesDynamicList.innerHTML = "";
+
+    profilesList.forEach(p => {
+      const row = document.createElement("div");
+      const isActive = p.id === activeProfile.id;
+      row.className = `profile-card-row ${isActive ? 'active' : ''}`;
+      
+      let roleDesc = "Uso Pessoal";
+      if (p.role === "simplificado") roleDesc = "Modo Simplificado / Idoso";
+      else if (p.role === "cuidador") roleDesc = `Cuidador (Acompanhando ${p.dependenteName || 'Dona Maria'})`;
+
+      row.innerHTML = `
+        <div class="profile-card-left" data-id="${p.id}">
+          <span class="profile-icon">${p.icon || '👤'}</span>
+          <div class="profile-info">
+            <strong>${p.name} ${isActive ? '<span style="color: var(--primary); font-size: 0.8rem; font-weight: 800;">✓ Ativo</span>' : ''}</strong>
+            <small>${roleDesc}</small>
+          </div>
+        </div>
+        <div class="profile-card-actions">
+          ${profilesList.length > 1 ? `<button class="btn-delete-profile" data-id="${p.id}" title="Excluir Perfil">🗑️</button>` : ''}
+        </div>
+      `;
+
+      row.querySelector(".profile-card-left").addEventListener("click", () => {
+        switchActiveProfile(p.id);
+        if (profileModal) profileModal.style.display = "none";
+      });
+
+      const delBtn = row.querySelector(".btn-delete-profile");
+      if (delBtn) {
+        delBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (confirm(`Deseja excluir o perfil "${p.name}"?`)) {
+            deleteProfile(p.id);
+          }
+        });
+      }
+
+      profilesDynamicList.appendChild(row);
+    });
+  }
+
+  function switchActiveProfile(pId) {
+    const found = profilesList.find(p => p.id === pId);
+    if (!found) return;
+    activeProfile = found;
+    activeProfileId = found.id;
+    localStorage.setItem("bemlembrado_active_id_v3", found.id);
+    if (found.fontSize) {
+      appSettings.fontSize = found.fontSize;
+      localStorage.setItem("bemlembrado_fontsize", found.fontSize);
+    }
+    applySettings();
+    renderProfilesModalList();
+    loadItems();
+  }
+
+  function deleteProfile(pId) {
+    if (profilesList.length <= 1) return;
+    profilesList = profilesList.filter(p => p.id !== pId);
+    saveStoredProfiles(profilesList);
+    if (activeProfile.id === pId) {
+      activeProfile = profilesList[0];
+      activeProfileId = activeProfile.id;
+      localStorage.setItem("bemlembrado_active_id_v3", activeProfile.id);
+    }
+    applySettings();
+    renderProfilesModalList();
+    loadItems();
+  }
+
+  // Abertura e Fechamento do Modal de Perfil
+  if (btnUserProfile && profileModal) {
+    btnUserProfile.addEventListener("click", () => {
+      renderProfilesModalList();
+      profileModal.style.display = "flex";
+    });
+  }
+  if (btnCloseProfileModal && profileModal) {
+    btnCloseProfileModal.addEventListener("click", () => {
+      profileModal.style.display = "none";
+    });
+  }
+
+  // Abertura do Gerenciador de Perfis a partir das Configurações
+  if (btnSettingsOpenProfiles && profileModal) {
+    btnSettingsOpenProfiles.addEventListener("click", () => {
+      if (settingsModal) settingsModal.style.display = "none";
+      renderProfilesModalList();
+      profileModal.style.display = "flex";
+    });
+  }
+
+  // Botões de Relatório e Tutorial nas Configurações e Cuidador
+  if (optSettingsReport) {
+    optSettingsReport.addEventListener("click", () => {
+      if (settingsModal) settingsModal.style.display = "none";
+      openReportModal();
+    });
+  }
+  if (optSettingsTutorial) {
+    optSettingsTutorial.addEventListener("click", () => {
+      if (settingsModal) settingsModal.style.display = "none";
+      openOnboardingCarousel();
+    });
+  }
+  if (btnCaregiverReport) {
+    btnCaregiverReport.addEventListener("click", openReportModal);
+  }
+
+  // Carrossel e Onboarding
+  function showSlide(index) {
+    currentSlideIndex = index;
+    carouselSlides.forEach((slide, i) => {
+      slide.classList.toggle("active", i === index);
+    });
+    carouselDots.forEach((dot, i) => {
+      dot.classList.toggle("active", i === index);
+    });
+
+    if (btnNextCarousel) {
+      if (currentSlideIndex === carouselSlides.length - 1) {
+        btnNextCarousel.textContent = "Criar Perfil e Começar ➔";
+      } else {
+        btnNextCarousel.textContent = "Avançar ➔";
+      }
+    }
+  }
+
+  if (btnNextCarousel) {
+    btnNextCarousel.addEventListener("click", () => {
+      if (currentSlideIndex < carouselSlides.length - 1) {
+        showSlide(currentSlideIndex + 1);
+      } else {
+        openRegistrationStep(false);
+      }
+    });
+  }
+
+  if (btnSkipCarousel) {
+    btnSkipCarousel.addEventListener("click", () => {
+      openRegistrationStep(false);
+    });
+  }
+
+  carouselDots.forEach(dot => {
+    dot.addEventListener("click", () => {
+      const idx = parseInt(dot.getAttribute("data-dot"), 10);
+      showSlide(idx);
+    });
+  });
+
+  function openOnboardingCarousel() {
+    if (!onboardingOverlay) return;
+    onboardingOverlay.style.display = "flex";
+    if (onboardingStepCarousel) onboardingStepCarousel.style.display = "flex";
+    if (onboardingStepRegister) onboardingStepRegister.style.display = "none";
+    showSlide(0);
+  }
+
+  function openRegistrationStep(isNewAdditional = false) {
+    if (!onboardingOverlay) return;
+    onboardingOverlay.style.display = "flex";
+    if (onboardingStepCarousel) onboardingStepCarousel.style.display = "none";
+    if (onboardingStepRegister) onboardingStepRegister.style.display = "flex";
+
+    if (regUserName) regUserName.value = "";
+    if (regDependentName) regDependentName.value = "";
+    if (regCaregiverPhone) regCaregiverPhone.value = "";
+    
+    selectedRegisterRole = "simplificado";
+    roleChoiceCards.forEach(c => c.classList.toggle("selected", c.getAttribute("data-role") === "simplificado"));
+    if (caregiverExtraFields) caregiverExtraFields.style.display = "none";
+
+    const regTitle = document.getElementById("register-title");
+    if (regTitle) {
+      regTitle.textContent = isNewAdditional ? "Cadastrar Novo Perfil" : "Criar Meu Perfil";
+    }
+
+    if (btnCancelRegister) {
+      btnCancelRegister.style.display = isNewAdditional ? "block" : "none";
+    }
+  }
+
+  roleChoiceCards.forEach(card => {
+    card.addEventListener("click", () => {
+      roleChoiceCards.forEach(c => c.classList.remove("selected"));
+      card.classList.add("selected");
+      selectedRegisterRole = card.getAttribute("data-role");
+
+      if (caregiverExtraFields) {
+        caregiverExtraFields.style.display = selectedRegisterRole === "cuidador" ? "block" : "none";
+      }
+    });
+  });
+
+  if (btnCancelRegister) {
+    btnCancelRegister.addEventListener("click", () => {
+      if (onboardingOverlay) onboardingOverlay.style.display = "none";
+    });
+  }
+
+  if (btnSubmitRegister) {
+    btnSubmitRegister.addEventListener("click", () => {
+      const typedName = regUserName ? regUserName.value.trim() : "";
+      const nameVal = typedName || (selectedRegisterRole === "simplificado" ? "Dona Maria" : (selectedRegisterRole === "cuidador" ? "Cuidador" : "Meu Perfil"));
+      const newId = "user_" + Date.now();
+      let icon = "👤";
+      let fontSize = "normal";
+
+      if (selectedRegisterRole === "simplificado") {
+        icon = "👵";
+        fontSize = "grande";
+      } else if (selectedRegisterRole === "cuidador") {
+        icon = "🩺";
+      }
+
+      const depName = regDependentName ? regDependentName.value.trim() : "";
+      const zapPhone = regCaregiverPhone ? regCaregiverPhone.value.trim() : "";
+
+      const newProfile = {
+        id: newId,
+        name: nameVal,
+        role: selectedRegisterRole,
+        icon: icon,
+        fontSize: fontSize,
+        dependenteName: depName,
+        cuidadorPhone: zapPhone
+      };
+
+      profilesList.push(newProfile);
+      saveStoredProfiles(profilesList);
+      activeProfile = newProfile;
+      activeProfileId = newProfile.id;
+      localStorage.setItem("bemlembrado_active_id_v3", newProfile.id);
+      localStorage.setItem("bemlembrado_onboarded_v3", "true");
+
+      if (zapPhone) {
+        appSettings.cuidadorPhone = zapPhone;
+        localStorage.setItem("bemlembrado_cuidador_phone", zapPhone);
+      }
+      appSettings.fontSize = fontSize;
+      localStorage.setItem("bemlembrado_fontsize", fontSize);
+
+      if (onboardingOverlay) onboardingOverlay.style.display = "none";
+      applySettings();
+      renderProfilesModalList();
+      loadItems();
+    });
+  }
+
+  if (btnAddProfileTrigger) {
+    btnAddProfileTrigger.addEventListener("click", () => {
+      if (profileModal) profileModal.style.display = "none";
+      openRegistrationStep(true);
+    });
+  }
+
+  // Verificação inicial se deve exibir onboarding
+  const hasOnboarded = localStorage.getItem("bemlembrado_onboarded_v3");
+  if (!hasOnboarded) {
+    openOnboardingCarousel();
+  }
+
+  // Botão rápido de WhatsApp no Banner do Cuidador
+  if (btnCaregiverQuickMsg) {
+    btnCaregiverQuickMsg.addEventListener("click", () => {
+      const phone = (activeProfile.cuidadorPhone || appSettings.cuidadorPhone || '').replace(/\D/g, '');
+      const dep = activeProfile.dependenteName || "seu familiar";
+      const text = encodeURIComponent(`Olá! Como estão as atividades e medicações de ${dep} hoje?`);
+      const zapUrl = phone ? `https://wa.me/55${phone}?text=${text}` : `https://wa.me/?text=${text}`;
+      window.open(zapUrl, "_blank");
+    });
+  }
 
   // Modal de Escalação de Cuidador
   const escalationModal = document.getElementById("escalation-modal");
@@ -162,117 +622,6 @@ function initApp() {
   const btnCloseNotifModal = document.getElementById("btn-close-notif-modal");
   const notifModalItemTitle = document.getElementById("notif-modal-item-title");
   let activeNotifItemId = null;
-
-  function applySettings() {
-    // 1. Alto Contraste
-    if (appSettings.modoConforto) {
-      document.body.classList.add("modo-acessivel");
-      if (chkSettingsConforto) chkSettingsConforto.checked = true;
-    } else {
-      document.body.classList.remove("modo-acessivel");
-      if (chkSettingsConforto) chkSettingsConforto.checked = false;
-    }
-
-    // 2. Tamanho de Fonte
-    document.body.classList.remove("font-grande", "font-extra-grande");
-    if (appSettings.fontSize === "grande") {
-      document.body.classList.add("font-grande");
-    } else if (appSettings.fontSize === "extra-grande") {
-      document.body.classList.add("font-extra-grande");
-    }
-    if (selectFontSize) selectFontSize.value = appSettings.fontSize;
-    if (inputCuidadorPhone) inputCuidadorPhone.value = appSettings.cuidadorPhone;
-
-    // 3. Perfil de Usuário
-    if (profileBadgeName) profileBadgeName.textContent = appSettings.profileName;
-    if (profileBadgeIcon) {
-      profileBadgeIcon.textContent = appSettings.profile === "cuidador" ? "🩺" : (appSettings.profile === "idoso" ? "👵" : "👤");
-    }
-
-    // 4. Banner do Cuidador
-    if (caregiverBanner) {
-      caregiverBanner.style.display = appSettings.profile === "cuidador" ? "block" : "none";
-    }
-
-    if (chkSettingsSwipe) chkSettingsSwipe.checked = appSettings.swipeEnabled;
-    if (chkSettingsTrash) chkSettingsTrash.checked = appSettings.trashEnabled;
-    if (selectProfile) selectProfile.value = appSettings.profile;
-    
-    if (profileDesc) {
-      if (appSettings.profile === "cuidador") {
-        profileDesc.textContent = "Acompanhamento Ativo para Cuidadores / Família";
-      } else if (appSettings.profile === "simplificado") {
-        profileDesc.textContent = "Modo Simplificado com Ações Grandes";
-      } else {
-        profileDesc.textContent = "Uso Pessoal Autônomo";
-      }
-    }
-    // Sincroniza feedback de voz com soundManager
-    if (window.soundManager) {
-      window.soundManager.voiceFeedbackEnabled = appSettings.voiceFeedbackEnabled;
-    }
-  }
-  applySettings();
-
-  // Listener para Tamanho de Fonte
-  if (selectFontSize) {
-    selectFontSize.addEventListener("change", (e) => {
-      appSettings.fontSize = e.target.value;
-      localStorage.setItem("bemlembrado_fontsize", appSettings.fontSize);
-      applySettings();
-    });
-  }
-
-  // Listener para Telefone do Cuidador
-  if (inputCuidadorPhone) {
-    inputCuidadorPhone.addEventListener("change", (e) => {
-      appSettings.cuidadorPhone = e.target.value.trim();
-      localStorage.setItem("bemlembrado_cuidador_phone", appSettings.cuidadorPhone);
-    });
-  }
-
-  // Abertura e Fechamento do Modal de Perfil Rápido
-  if (btnUserProfile && profileModal) {
-    btnUserProfile.addEventListener("click", () => {
-      profileModal.style.display = "flex";
-    });
-  }
-  if (btnCloseProfileModal && profileModal) {
-    btnCloseProfileModal.addEventListener("click", () => {
-      profileModal.style.display = "none";
-    });
-  }
-
-  document.querySelectorAll(".btn-profile-card").forEach(card => {
-    card.addEventListener("click", (e) => {
-      const pId = card.getAttribute("data-profile-id");
-      const pName = card.getAttribute("data-profile-name");
-      appSettings.profile = pId;
-      appSettings.profileName = pName;
-      localStorage.setItem("bemlembrado_profile", pId);
-      localStorage.setItem("bemlembrado_profile_name", pName);
-      
-      document.querySelectorAll(".btn-profile-card").forEach(c => c.classList.remove("active"));
-      card.classList.add("active");
-      
-      if (profileModal) profileModal.style.display = "none";
-      applySettings();
-      loadItems();
-    });
-  });
-
-  // Botão rápido de WhatsApp no Banner do Cuidador
-  if (btnCaregiverQuickMsg) {
-    btnCaregiverQuickMsg.addEventListener("click", () => {
-      const phone = appSettings.cuidadorPhone ? appSettings.cuidadorPhone.replace(/\D/g, '') : '';
-      const text = encodeURIComponent("Olá! Como estão os seus medicamentos e atividades hoje?");
-      const zapUrl = phone ? `https://wa.me/55${phone}?text=${text}` : `https://wa.me/?text=${text}`;
-      window.open(zapUrl, "_blank");
-    });
-  }
-
-  // Modal de Escalação para Cuidador
-  function openEscalationModal(item) {
     activeEscalationItem = item;
     if (escalationMedName) escalationMedName.textContent = item.titulo;
     if (escalationModal) escalationModal.style.display = "flex";
@@ -711,7 +1060,7 @@ function initApp() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           transcription: text,
-          usuario_id: appSettings.profile || "idoso"
+          usuario_id: activeProfile.id || "idoso"
         })
       });
 
@@ -733,7 +1082,11 @@ function initApp() {
         if (voiceStatus) voiceStatus.textContent = msg;
         if (liveTranscription) liveTranscription.textContent = "";
         setTimeout(() => {
-          if (voiceStatus) voiceStatus.textContent = "Toque no microfone para falar";
+          if (voiceStatus) {
+            voiceStatus.textContent = activeProfile.role === "simplificado" 
+              ? "👉 Toque no microfone para falar seu lembrete" 
+              : (activeProfile.role === "cuidador" ? "Grave um lembrete ou instrução de voz" : "Toque no microfone para falar");
+          }
         }, 3000);
         loadItems();
       }
@@ -745,8 +1098,12 @@ function initApp() {
   // 7. Carregar Itens do Banco de Dados
   async function loadItems() {
     try {
-      const userParam = appSettings.profile || "idoso";
-      const resp = await fetch(`/api/items?usuario_id=${encodeURIComponent(userParam)}`);
+      let url = `/api/items?usuario_id=${encodeURIComponent(activeProfile.id)}`;
+      if (activeProfile.role === "cuidador") {
+        const depId = activeProfile.dependenteId || (activeProfile.dependenteName ? "idoso" : "");
+        url = `/api/items?usuario_id=${encodeURIComponent(activeProfile.id)}&dependente_id=${encodeURIComponent(depId || "idoso")}`;
+      }
+      const resp = await fetch(url);
       allLoadedItems = await resp.json();
       if (countTodos) countTodos.textContent = `(${allLoadedItems.length})`;
       renderFeed();
@@ -986,6 +1343,12 @@ function initApp() {
 
         ${item.transcricao_original && item.transcricao_original.toLowerCase() !== item.titulo.toLowerCase() ? `
           <div class="card-desc-box">"${item.transcricao_original}"</div>
+        ` : ''}
+
+        ${activeProfile.role === "simplificado" && item.categoria === "medicacao" && item.status !== "concluido" && !item.confirmado_tomado ? `
+          <button class="btn-simplified-confirm btn-trigger-check" data-id="${item.id}" data-name="${item.titulo}">
+            ✓ JÁ TOMEI ESTE REMÉDIO
+          </button>
         ` : ''}
 
         <div class="card-footer">

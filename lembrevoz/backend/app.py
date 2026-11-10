@@ -32,8 +32,8 @@ class StatusUpdateRequest(BaseModel):
     confirmado_tomado: Optional[bool] = None
 
 @app.get("/api/items")
-def get_items(usuario_id: Optional[str] = None):
-    return list_items(usuario_id=usuario_id)
+def get_items(usuario_id: Optional[str] = None, dependente_id: Optional[str] = None):
+    return list_items(usuario_id=usuario_id, dependente_id=dependente_id)
 
 @app.post("/api/process-voice")
 def process_voice(req: VoiceRequest):
