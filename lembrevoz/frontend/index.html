@@ -18,7 +18,9 @@
       <div class="logo-area">
         <img src="assets/logo-light-transparent.png" alt="Bem Lembrado" class="header-logo logo-light">
         <img src="assets/logo-dark-transparent.png" alt="Bem Lembrado" class="header-logo logo-dark">
-        <span class="badge-tag">MVP</span>
+        <button id="btn-user-profile" class="btn-profile-badge" title="Trocar Perfil">
+          <span id="profile-badge-icon">👵</span> <span id="profile-badge-name">Dona Maria</span>
+        </button>
       </div>
       <div class="header-actions">
         <button id="btn-open-report" class="btn-header-icon" title="Relatório de Adesão à Medicação">
@@ -32,6 +34,14 @@
         </button>
       </div>
     </header>
+
+    <!-- Banner Modo Cuidador -->
+    <div id="caregiver-banner" class="caregiver-banner" style="display: none;">
+      <div class="caregiver-banner-content">
+        <span>🩺 <strong>Modo Cuidador Ativo:</strong> Acompanhando Dona Maria</span>
+        <button id="btn-caregiver-quick-msg" class="btn-caregiver-zap">📱 WhatsApp Cuidador</button>
+      </div>
+    </div>
 
     <!-- Área de Gravação Central (1 Toque) -->
     <main>
@@ -116,15 +126,40 @@
           <button id="btn-close-settings" class="btn-close-modal">&times;</button>
         </div>
 
-        <!-- Grupo: Aparência -->
+        <!-- Grupo: Aparência e Acessibilidade -->
         <div class="settings-group">
-          <div class="settings-group-title">Aparência e Contraste</div>
+          <div class="settings-group-title">Aparência e Acessibilidade</div>
           <div class="settings-option" id="opt-theme-toggle">
             <div class="settings-option-text">
               <h4>Visão Conforto</h4>
-              <p>Modo escuro com alto contraste e fontes ampliadas</p>
+              <p>Modo escuro com alto contraste</p>
             </div>
             <input type="checkbox" id="chk-settings-conforto" style="width: 20px; height: 20px;">
+          </div>
+          <div class="settings-option">
+            <div class="settings-option-text">
+              <h4>Tamanho das Fontes</h4>
+              <p>Ajuste para facilitar a leitura</p>
+            </div>
+            <select id="select-font-size" style="padding: 6px; border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-primary);">
+              <option value="normal">Normal (100%)</option>
+              <option value="grande">Grande (125%)</option>
+              <option value="extra-grande">Extra Grande (150%)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Grupo: Pessoa de Confiança / Cuidador -->
+        <div class="settings-group">
+          <div class="settings-group-title">Pessoa de Confiança (Cuidador)</div>
+          <div class="settings-option">
+            <div class="settings-option-text">
+              <h4>WhatsApp do Cuidador</h4>
+              <p>Número para avisos caso o remédio não seja tomado</p>
+            </div>
+          </div>
+          <div style="padding: 0 12px 10px 12px;">
+            <input type="tel" id="input-cuidador-phone" placeholder="Ex: 11999998888 (com DDD)" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-primary);">
           </div>
         </div>
 
@@ -250,5 +285,97 @@
         </div>
       </div>
     </div>
+    <!-- Modal de Seleção Rápida de Perfil (Opção A) -->
+    <div id="profile-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Quem está usando agora?</h3>
+          <button id="btn-close-profile-modal" class="btn-close-modal">&times;</button>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 16px;">
+          Selecione o perfil para ver os lembretes adequados:
+        </p>
+        <div class="profile-options-grid">
+          <button class="btn-profile-card active" data-profile-id="idoso" data-profile-name="Dona Maria" data-profile-role="idoso">
+            <span class="profile-icon">👵</span>
+            <div class="profile-info">
+              <strong>Dona Maria (Idosa)</strong>
+              <small>Visão simplificada, fontes claras e alarmes ativos</small>
+            </div>
+          </button>
+          <button class="btn-profile-card" data-profile-id="cuidador" data-profile-name="Carlos (Cuidador)" data-profile-role="cuidador">
+            <span class="profile-icon">🩺</span>
+            <div class="profile-info">
+              <strong>Carlos (Cuidador / Família)</strong>
+              <small>Acompanha os remédios de Dona Maria e recebe alertas</small>
+            </div>
+          </button>
+          <button class="btn-profile-card" data-profile-id="pessoal" data-profile-name="Meu Perfil" data-profile-role="pessoal">
+            <span class="profile-icon">👤</span>
+            <div class="profile-info">
+              <strong>Meu Perfil / Visitante</strong>
+              <small>Uso pessoal com tarefas, rotinas e compromissos</small>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Escalação de Alarme para o Cuidador -->
+    <div id="escalation-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-content" style="border: 2px solid var(--danger);">
+        <div class="modal-icon-wrapper" style="background: #fee2e2; color: #b91c1c;">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        </div>
+        <h3 class="modal-title" style="color: #b91c1c;">Aviso de Segurança</h3>
+        <p class="modal-subtitle">
+          O remédio <strong id="escalation-med-name">Medicação</strong> não foi confirmado após várias tentativas.
+        </p>
+        <div style="background: var(--card-bg); padding: 12px; border-radius: 8px; border: 1px solid var(--border); margin: 12px 0; text-align: left; font-size: 0.88rem;">
+          Deseja avisar a pessoa de confiança (cuidador/família) para verificar?
+        </div>
+        <div class="modal-buttons">
+          <button id="btn-escalate-zap" class="btn-confirm-yes" style="background: #25d366; color: white;">
+            📱 Avisar no WhatsApp
+          </button>
+          <button id="btn-escalate-dismiss" class="btn-confirm-no">Já Verifiquei / Fechar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Seletor de Tipo de Notificação (1 Toque) -->
+    <div id="notif-type-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Como deseja ser lembrado?</h3>
+          <button id="btn-close-notif-modal" class="btn-close-modal">&times;</button>
+        </div>
+        <p id="notif-modal-item-title" style="font-weight: 600; margin-bottom: 14px;"></p>
+        <div class="notif-options-list">
+          <button class="btn-notif-choice" data-type="silencioso">
+            <span class="notif-choice-icon">👁️</span>
+            <div>
+              <strong>Apenas na Tela (Silencioso)</strong>
+              <small>Aparece na lista do app sem emitir som ou notificação externa</small>
+            </div>
+          </button>
+          <button class="btn-notif-choice" data-type="notificacao">
+            <span class="notif-choice-icon">🔔</span>
+            <div>
+              <strong>Notificação (Aviso Próximo)</strong>
+              <small>Receba uma notificação do navegador no horário ou próximo dele</small>
+            </div>
+          </button>
+          <button class="btn-notif-choice" data-type="alarme">
+            <span class="notif-choice-icon">🚨</span>
+            <div>
+              <strong>Alarme Sonoro Contínuo (Urgente)</strong>
+              <small>Toca sino suave contínuo, vibra e fala por voz até confirmação</small>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+
   </body>
 </html>

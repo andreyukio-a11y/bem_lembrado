@@ -19,5 +19,21 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "🎙️ Falar Lembrete",
+      "short_name": "Gravar",
+      "description": "Abrir gravação por voz imediatamente",
+      "url": "/?action=record",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "💊 Meus Remédios",
+      "short_name": "Remédios",
+      "description": "Ver medicações e horários de hoje",
+      "url": "/?filter=medicacao",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
   ]
 }

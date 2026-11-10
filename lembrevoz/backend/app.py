@@ -6,7 +6,7 @@ from typing import Optional
 import os
 import uvicorn
 
-from database import init_db, list_items, add_item, update_item_status, delete_item, reschedule_item, toggle_pin, batch_delete, get_adherence_report
+from database import init_db, list_items, add_item, update_item_status, delete_item, reschedule_item, toggle_pin, batch_delete, get_adherence_report, update_item_notification
 from ai_service import classify_and_extract
 
 # Inicializa o banco de dados
@@ -25,14 +25,15 @@ app.add_middleware(
 
 class VoiceRequest(BaseModel):
     transcription: str
+    usuario_id: Optional[str] = "idoso"
 
 class StatusUpdateRequest(BaseModel):
     status: str
     confirmado_tomado: Optional[bool] = None
 
 @app.get("/api/items")
-def get_items():
-    return list_items()
+def get_items(usuario_id: Optional[str] = None):
+    return list_items(usuario_id=usuario_id)
 
 @app.post("/api/process-voice")
 def process_voice(req: VoiceRequest):
@@ -52,7 +53,8 @@ def process_voice(req: VoiceRequest):
             "tempo_checagem_minutos": extracted.get("tempo_checagem_minutos", 15)
         }]
 
-    # 2. Persistência de cada item no banco SQLite
+    # 2. Persistência de cada item no banco SQLite associado ao usuário
+    active_user = req.usuario_id or "idoso"
     created_items = []
     for it in items_to_create:
         item_id = add_item(
@@ -60,7 +62,10 @@ def process_voice(req: VoiceRequest):
             transcricao_original=clean_text,
             categoria=it.get("categoria", "tarefa"),
             data_hora_alvo=it.get("data_hora_alvo"),
-            tempo_checagem=it.get("tempo_checagem_minutos", 15)
+            tempo_checagem=it.get("tempo_checagem_minutos", 15),
+            usuario_id=active_user,
+            data_hora_fim=it.get("data_hora_fim"),
+            tipo_notificacao=it.get("tipo_notificacao", "padrao")
         )
         it_copy = dict(it)
         it_copy["item_id"] = item_id
@@ -103,6 +108,14 @@ def remove_item(item_id: int):
 @app.post("/api/items/{item_id}/reschedule")
 def reschedule(item_id: int, req: RescheduleRequest):
     reschedule_item(item_id, req.data_hora_alvo)
+    return {"success": True}
+
+class NotificationUpdateRequest(BaseModel):
+    tipo_notificacao: str
+
+@app.post("/api/items/{item_id}/notification")
+def change_notification(item_id: int, req: NotificationUpdateRequest):
+    update_item_notification(item_id, req.tipo_notificacao)
     return {"success": True}
 
 @app.post("/api/items/{item_id}/pin")

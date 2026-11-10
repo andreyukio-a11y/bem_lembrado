@@ -76,6 +76,8 @@ def init_db():
         transcricao_original TEXT,
         categoria TEXT NOT NULL, -- 'medicacao', 'tarefa', 'compromisso'
         data_hora_alvo TEXT,     -- Formato ISO: YYYY-MM-DDTHH:MM:SS
+        data_hora_fim TEXT,      -- Formato ISO: YYYY-MM-DDTHH:MM:SS (Término para intervalos)
+        tipo_notificacao TEXT DEFAULT 'padrao', -- 'alarme', 'notificacao', 'silencioso'
         status TEXT DEFAULT 'pendente', -- 'pendente', 'concluido', 'aguardando_confirmacao'
         
         -- Campos específicos para medicação (fechamento de ciclo)
@@ -86,6 +88,7 @@ def init_db():
         fixado INTEGER DEFAULT 0, -- 0 = Normal, 1 = Fixado no topo
         med_name TEXT DEFAULT '',  -- Nome da medicação extraída
         dose TEXT DEFAULT '',      -- Dose extraída (ex: "500 mg")
+        usuario_id TEXT DEFAULT 'idoso', -- 'idoso', 'cuidador' ou identificador pessoal
         
         criado_em TEXT DEFAULT CURRENT_TIMESTAMP
     );
@@ -110,19 +113,39 @@ def init_db():
         conn.commit()
     except Exception:
         pass
+    try:
+        cursor.execute("ALTER TABLE items ADD COLUMN usuario_id TEXT DEFAULT 'idoso'")
+        conn.commit()
+    except Exception:
+        pass
+    try:
+        cursor.execute("ALTER TABLE items ADD COLUMN data_hora_fim TEXT DEFAULT NULL")
+        conn.commit()
+    except Exception:
+        pass
+    try:
+        cursor.execute("ALTER TABLE items ADD COLUMN tipo_notificacao TEXT DEFAULT 'padrao'")
+        conn.commit()
+    except Exception:
+        pass
 
     conn.close()
 
-def list_items():
+def list_items(usuario_id=None):
     conn = get_connection()
     cursor = conn.cursor()
-    # Itens fixados vêm primeiro, depois por id decrescente
-    cursor.execute("SELECT * FROM items ORDER BY fixado DESC, id DESC")
+    # Se for cuidador, exibe os itens do idoso para acompanhamento ativo
+    if usuario_id == 'cuidador':
+        cursor.execute("SELECT * FROM items WHERE usuario_id IN ('idoso', 'padrao') ORDER BY fixado DESC, id DESC")
+    elif usuario_id and usuario_id != 'todos':
+        cursor.execute("SELECT * FROM items WHERE usuario_id = ? ORDER BY fixado DESC, id DESC", (usuario_id,))
+    else:
+        cursor.execute("SELECT * FROM items ORDER BY fixado DESC, id DESC")
     rows = cursor.fetchall()
     conn.close()
     return [dict(row) for row in rows]
 
-def add_item(titulo, transcricao_original, categoria, data_hora_alvo, tempo_checagem=15):
+def add_item(titulo, transcricao_original, categoria, data_hora_alvo, tempo_checagem=15, usuario_id='idoso', data_hora_fim=None, tipo_notificacao='padrao'):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -138,13 +161,20 @@ def add_item(titulo, transcricao_original, categoria, data_hora_alvo, tempo_chec
         smart_title = clean_concise_title(titulo or transcricao_original, categoria)
 
     cursor.execute("""
-    INSERT INTO items (titulo, transcricao_original, categoria, data_hora_alvo, tempo_checagem_minutos, med_name, dose)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (smart_title, transcricao_original, categoria, data_hora_alvo, tempo_checagem, med_name, dose))
+    INSERT INTO items (titulo, transcricao_original, categoria, data_hora_alvo, data_hora_fim, tipo_notificacao, tempo_checagem_minutos, med_name, dose, usuario_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (smart_title, transcricao_original, categoria, data_hora_alvo, data_hora_fim, tipo_notificacao or 'padrao', tempo_checagem, med_name, dose, usuario_id or 'idoso'))
     conn.commit()
     item_id = cursor.lastrowid
     conn.close()
     return item_id
+
+def update_item_notification(item_id, tipo_notificacao):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE items SET tipo_notificacao = ? WHERE id = ?", (tipo_notificacao, item_id))
+    conn.commit()
+    conn.close()
 
 def update_item_status(item_id, status, confirmado_tomado=None):
     conn = get_connection()

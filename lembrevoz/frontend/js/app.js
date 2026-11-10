@@ -68,9 +68,12 @@ function initApp() {
   // Preferências do Usuário (Persistência em localStorage)
   let appSettings = {
     modoConforto: localStorage.getItem("bemlembrado_acessivel") === "true",
+    fontSize: localStorage.getItem("bemlembrado_fontsize") || "normal",
+    cuidadorPhone: localStorage.getItem("bemlembrado_cuidador_phone") || "",
     swipeEnabled: localStorage.getItem("bemlembrado_swipe") !== "false",
     trashEnabled: localStorage.getItem("bemlembrado_trash") !== "false",
-    profile: localStorage.getItem("bemlembrado_profile") || "pessoal",
+    profile: localStorage.getItem("bemlembrado_profile") || "idoso",
+    profileName: localStorage.getItem("bemlembrado_profile_name") || "Dona Maria",
     voiceFeedbackEnabled: localStorage.getItem("bemlembrado_voice") !== "false"
   };
 
@@ -137,13 +140,58 @@ function initApp() {
   if (btnCloseReport) btnCloseReport.addEventListener('click', closeReportModal);
   if (btnShareReport) btnShareReport.addEventListener('click', shareReport);
 
+  const selectFontSize = document.getElementById("select-font-size");
+  const inputCuidadorPhone = document.getElementById("input-cuidador-phone");
+  const btnUserProfile = document.getElementById("btn-user-profile");
+  const profileBadgeIcon = document.getElementById("profile-badge-icon");
+  const profileBadgeName = document.getElementById("profile-badge-name");
+  const profileModal = document.getElementById("profile-modal");
+  const btnCloseProfileModal = document.getElementById("btn-close-profile-modal");
+  const caregiverBanner = document.getElementById("caregiver-banner");
+  const btnCaregiverQuickMsg = document.getElementById("btn-caregiver-quick-msg");
+
+  // Modal de Escalação de Cuidador
+  const escalationModal = document.getElementById("escalation-modal");
+  const escalationMedName = document.getElementById("escalation-med-name");
+  const btnEscalateZap = document.getElementById("btn-escalate-zap");
+  const btnEscalateDismiss = document.getElementById("btn-escalate-dismiss");
+  let activeEscalationItem = null;
+
+  // Modal de Seleção de Tipo de Notificação
+  const notifTypeModal = document.getElementById("notif-type-modal");
+  const btnCloseNotifModal = document.getElementById("btn-close-notif-modal");
+  const notifModalItemTitle = document.getElementById("notif-modal-item-title");
+  let activeNotifItemId = null;
+
   function applySettings() {
+    // 1. Alto Contraste
     if (appSettings.modoConforto) {
       document.body.classList.add("modo-acessivel");
       if (chkSettingsConforto) chkSettingsConforto.checked = true;
     } else {
       document.body.classList.remove("modo-acessivel");
       if (chkSettingsConforto) chkSettingsConforto.checked = false;
+    }
+
+    // 2. Tamanho de Fonte
+    document.body.classList.remove("font-grande", "font-extra-grande");
+    if (appSettings.fontSize === "grande") {
+      document.body.classList.add("font-grande");
+    } else if (appSettings.fontSize === "extra-grande") {
+      document.body.classList.add("font-extra-grande");
+    }
+    if (selectFontSize) selectFontSize.value = appSettings.fontSize;
+    if (inputCuidadorPhone) inputCuidadorPhone.value = appSettings.cuidadorPhone;
+
+    // 3. Perfil de Usuário
+    if (profileBadgeName) profileBadgeName.textContent = appSettings.profileName;
+    if (profileBadgeIcon) {
+      profileBadgeIcon.textContent = appSettings.profile === "cuidador" ? "🩺" : (appSettings.profile === "idoso" ? "👵" : "👤");
+    }
+
+    // 4. Banner do Cuidador
+    if (caregiverBanner) {
+      caregiverBanner.style.display = appSettings.profile === "cuidador" ? "block" : "none";
     }
 
     if (chkSettingsSwipe) chkSettingsSwipe.checked = appSettings.swipeEnabled;
@@ -165,6 +213,114 @@ function initApp() {
     }
   }
   applySettings();
+
+  // Listener para Tamanho de Fonte
+  if (selectFontSize) {
+    selectFontSize.addEventListener("change", (e) => {
+      appSettings.fontSize = e.target.value;
+      localStorage.setItem("bemlembrado_fontsize", appSettings.fontSize);
+      applySettings();
+    });
+  }
+
+  // Listener para Telefone do Cuidador
+  if (inputCuidadorPhone) {
+    inputCuidadorPhone.addEventListener("change", (e) => {
+      appSettings.cuidadorPhone = e.target.value.trim();
+      localStorage.setItem("bemlembrado_cuidador_phone", appSettings.cuidadorPhone);
+    });
+  }
+
+  // Abertura e Fechamento do Modal de Perfil Rápido
+  if (btnUserProfile && profileModal) {
+    btnUserProfile.addEventListener("click", () => {
+      profileModal.style.display = "flex";
+    });
+  }
+  if (btnCloseProfileModal && profileModal) {
+    btnCloseProfileModal.addEventListener("click", () => {
+      profileModal.style.display = "none";
+    });
+  }
+
+  document.querySelectorAll(".btn-profile-card").forEach(card => {
+    card.addEventListener("click", (e) => {
+      const pId = card.getAttribute("data-profile-id");
+      const pName = card.getAttribute("data-profile-name");
+      appSettings.profile = pId;
+      appSettings.profileName = pName;
+      localStorage.setItem("bemlembrado_profile", pId);
+      localStorage.setItem("bemlembrado_profile_name", pName);
+      
+      document.querySelectorAll(".btn-profile-card").forEach(c => c.classList.remove("active"));
+      card.classList.add("active");
+      
+      if (profileModal) profileModal.style.display = "none";
+      applySettings();
+      loadItems();
+    });
+  });
+
+  // Botão rápido de WhatsApp no Banner do Cuidador
+  if (btnCaregiverQuickMsg) {
+    btnCaregiverQuickMsg.addEventListener("click", () => {
+      const phone = appSettings.cuidadorPhone ? appSettings.cuidadorPhone.replace(/\D/g, '') : '';
+      const text = encodeURIComponent("Olá! Como estão os seus medicamentos e atividades hoje?");
+      const zapUrl = phone ? `https://wa.me/55${phone}?text=${text}` : `https://wa.me/?text=${text}`;
+      window.open(zapUrl, "_blank");
+    });
+  }
+
+  // Modal de Escalação para Cuidador
+  function openEscalationModal(item) {
+    activeEscalationItem = item;
+    if (escalationMedName) escalationMedName.textContent = item.titulo;
+    if (escalationModal) escalationModal.style.display = "flex";
+    if (window.soundManager) window.soundManager.speak(`Atenção. O lembrete de ${item.titulo} não foi confirmado.`);
+  }
+
+  if (btnEscalateDismiss && escalationModal) {
+    btnEscalateDismiss.addEventListener("click", () => {
+      escalationModal.style.display = "none";
+    });
+  }
+
+  if (btnEscalateZap && escalationModal) {
+    btnEscalateZap.addEventListener("click", () => {
+      const phone = appSettings.cuidadorPhone ? appSettings.cuidadorPhone.replace(/\D/g, '') : '';
+      const med = activeEscalationItem ? activeEscalationItem.titulo : 'a medicação';
+      const text = encodeURIComponent(`Atenção: O lembrete de "${med}" não foi confirmado por Dona Maria. Por favor, verifique com ela.`);
+      const zapUrl = phone ? `https://wa.me/55${phone}?text=${text}` : `https://wa.me/?text=${text}`;
+      window.open(zapUrl, "_blank");
+      escalationModal.style.display = "none";
+    });
+  }
+
+  // Modal de Tipo de Notificação
+  if (btnCloseNotifModal && notifTypeModal) {
+    btnCloseNotifModal.addEventListener("click", () => {
+      notifTypeModal.style.display = "none";
+    });
+  }
+
+  document.querySelectorAll(".btn-notif-choice").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const newType = btn.getAttribute("data-type");
+      if (activeNotifItemId && newType) {
+        try {
+          await fetch(`/api/items/${activeNotifItemId}/notification`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tipo_notificacao: newType })
+          });
+          if (notifTypeModal) notifTypeModal.style.display = "none";
+          loadItems();
+        } catch (e) {
+          console.error("Erro ao alterar tipo de notificação:", e);
+        }
+      }
+    });
+  });
 
   // Alternador Rápido de Acessibilidade no Header
   if (btnToggleAcessivel) {
@@ -241,37 +397,51 @@ function initApp() {
 
   function scheduleAlarm(item) {
     if (!item || !item.data_hora_alvo || item.status === "concluido" || item.confirmado_tomado) return;
-    // Só agenda alarme para medicações
-    if (item.categoria !== "medicacao") return;
     
-    const itemId = item.id;
-    // Cancela alarme anterior se houver
-    stopAlarm(itemId);
-
     const targetTime = new Date(item.data_hora_alvo).getTime();
     const now = Date.now();
     let delay = targetTime - now;
 
-    // Se já passou, toca imediatamente
+    // Se o modo for apenas Notificação do Navegador
+    if (item.tipo_notificacao === "notificacao") {
+      if (delay > 0 && delay < 24 * 60 * 60 * 1000) {
+        setTimeout(() => {
+          if (window.soundManager) {
+            window.soundManager.notify(`Lembrete: ${item.titulo}`, "Está na hora da sua atividade agendada.");
+          }
+        }, delay);
+      }
+      return;
+    }
+
+    // Se o modo for Silencioso (Apenas Tela), não agenda alarme sonoro
+    if (item.tipo_notificacao === "silencioso") return;
+
+    // Padrão de alarme sonoro contínuo (Medicação ou tarefas com Alarme)
+    const isAlarmMode = item.categoria === "medicacao" || item.tipo_notificacao === "alarme";
+    if (!isAlarmMode) return;
+    
+    const itemId = item.id;
+    stopAlarm(itemId);
+
     if (delay < 0) delay = 0;
-    // Não agenda se passou há mais de 30 minutos
     if (delay === 0 && (now - targetTime) > 30 * 60 * 1000) return;
 
     const handle = { timeoutId: null, intervalId: null, attempts: 0 };
     
     handle.timeoutId = setTimeout(() => {
-      // Primeiro toque do alarme
       triggerAlarmForItem(item, handle);
       
-      // Repete a cada 2 minutos até confirmar ou max tentativas
       handle.intervalId = setInterval(() => {
         handle.attempts++;
         if (handle.attempts >= ALARM_MAX_ATTEMPTS) {
           stopAlarm(itemId);
           if (window.soundManager) {
-            window.soundManager.notify("Medicação não confirmada", 
-              `Você não confirmou: ${item.titulo}. Verifique seu lembrete.`);
+            window.soundManager.notify("Lembrete não confirmado", 
+              `Você não confirmou: ${item.titulo}.`);
           }
+          // Escalação de Cuidador / Pessoa de Confiança
+          openEscalationModal(item);
           return;
         }
         triggerAlarmForItem(item, handle);
@@ -539,7 +709,10 @@ function initApp() {
       const response = await fetch("/api/process-voice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcription: text })
+        body: JSON.stringify({ 
+          transcription: text,
+          usuario_id: appSettings.profile || "idoso"
+        })
       });
 
       const result = await response.json();
@@ -572,7 +745,8 @@ function initApp() {
   // 7. Carregar Itens do Banco de Dados
   async function loadItems() {
     try {
-      const resp = await fetch("/api/items");
+      const userParam = appSettings.profile || "idoso";
+      const resp = await fetch(`/api/items?usuario_id=${encodeURIComponent(userParam)}`);
       allLoadedItems = await resp.json();
       if (countTodos) countTodos.textContent = `(${allLoadedItems.length})`;
       renderFeed();
@@ -730,7 +904,12 @@ function initApp() {
         dayText = `${diaSemana}, ${dayText}`;
       }
 
-      const timeStr = itemDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      let timeStr = itemDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      if (item.data_hora_fim) {
+        const endDate = new Date(item.data_hora_fim);
+        const endTimeStr = endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        timeStr = `${timeStr} - ${endTimeStr}`;
+      }
 
       scheduleInfoHtml = `
         <div class="card-schedule-badge">
@@ -745,6 +924,23 @@ function initApp() {
     if (item.dose) {
       doseHtml = `<span class="card-dose-tag">${item.dose}</span>`;
     }
+
+    // Badge do modo de alerta / notificação
+    let notifType = item.tipo_notificacao || (item.categoria === 'medicacao' ? 'alarme' : (item.categoria === 'compromisso' ? 'notificacao' : 'silencioso'));
+    let notifIcon = "👁️";
+    let notifLabel = "Tela";
+    if (notifType === "alarme") {
+      notifIcon = "🚨";
+      notifLabel = "Alarme";
+    } else if (notifType === "notificacao") {
+      notifIcon = "🔔";
+      notifLabel = "Aviso";
+    }
+    const notifBadgeHtml = `
+      <button class="card-notif-badge ${notifType} btn-change-notif" data-id="${item.id}" data-title="${item.titulo}" title="Toque para alterar o modo de aviso">
+        ${notifIcon} ${notifLabel}
+      </button>
+    `;
 
     // Fechamento de ciclo para remédio
     let cycleHtml = "";
@@ -774,6 +970,7 @@ function initApp() {
             <input type="checkbox" class="card-checkbox" data-id="${item.id}" ${isChecked}>
             <span class="category-tag">${catIcon} ${catNome}</span>
             ${statusBadge}
+            ${notifBadgeHtml}
           </div>
           <div>
             ${cycleHtml}
@@ -815,6 +1012,17 @@ function initApp() {
         if (e.target.checked) selectedItemIds.add(id);
         else selectedItemIds.delete(id);
         if (batchCount) batchCount.textContent = selectedItemIds.size;
+      });
+    });
+
+    // Ação: Alterar Tipo de Notificação (1 Toque)
+    document.querySelectorAll(".btn-change-notif").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        activeNotifItemId = btn.getAttribute("data-id");
+        const title = btn.getAttribute("data-title");
+        if (notifModalItemTitle) notifModalItemTitle.textContent = title;
+        if (notifTypeModal) notifTypeModal.style.display = "flex";
       });
     });
 
@@ -949,6 +1157,26 @@ function initApp() {
       window.soundManager.startContinuousAlarm(2200);
       window.soundManager.notify("Hora do Medicamento", `Você tomou: ${medName}?`);
     }
+  }
+
+  // Tratamento de atalhos rápidos PWA / URL params (?action=record, ?filter=medicacao)
+  const urlParams = new URLSearchParams(window.location.search);
+  const filterParam = urlParams.get("filter");
+  const actionParam = urlParams.get("action");
+
+  if (filterParam) {
+    currentFilter = filterParam;
+    if (filtersBar) {
+      filtersBar.querySelectorAll(".filter-pill").forEach(p => {
+        p.classList.toggle("active", p.getAttribute("data-filter") === filterParam);
+      });
+    }
+  }
+
+  if (actionParam === "record" && micBtn) {
+    setTimeout(() => {
+      micBtn.click();
+    }, 450);
   }
 
   loadItems();

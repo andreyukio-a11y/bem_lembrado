@@ -101,7 +101,9 @@ Regras:
 3. Para cada item:
    - 'categoria': exatamente uma destas: "medicacao", "compromisso" ou "tarefa".
    - 'titulo': Extremamente conciso e direto (máximo 3 a 5 palavras). Apenas o nome da tarefa/remédio (ex: "Tomar Dipirona", "Reunião KPI", "Comprar Pão", "Limpar a Casa"). NUNCA coloque datas ou horários no título.
-   - 'data_hora_alvo': Data e hora no formato ISO (YYYY-MM-DDTHH:MM:SS) calculadas a partir da fala (ou null se não informada).
+   - 'data_hora_alvo': Data e hora no formato ISO (YYYY-MM-DDTHH:MM:SS) de início calculadas a partir da fala (ou null se não informada).
+   - 'data_hora_fim': Data e hora no formato ISO (YYYY-MM-DDTHH:MM:SS) de término quando a fala indicar um intervalo/duração (ex: "reunião das 14h às 16h", "aula das 8h às 11h") ou null.
+   - 'tipo_notificacao': Forma de apresentação do lembrete: "alarme" (com som contínuo e voz), "notificacao" (aviso push no horário) ou "silencioso" (apenas lembrete visual na tela). Regra padrão: remédio = "alarme", compromisso = "notificacao", tarefa = "silencioso", a menos que o usuário peça explicitamente (ex: "com alarme", "sem som", "urgente").
    - 'tempo_checagem_minutos': 15 para medicação.
 
 Data e hora atual de referência: {current_time.strftime('%Y-%m-%d %H:%M:%S')} (Dia da semana: {current_time.strftime('%A')}).
@@ -114,6 +116,8 @@ Responda APENAS com um objeto JSON válido:
       "categoria": "medicacao" | "compromisso" | "tarefa",
       "titulo": "string",
       "data_hora_alvo": "YYYY-MM-DDTHH:MM:SS" ou null,
+      "data_hora_fim": "YYYY-MM-DDTHH:MM:SS" ou null,
+      "tipo_notificacao": "alarme" | "notificacao" | "silencioso",
       "tempo_checagem_minutos": 15
     }}
   ]
@@ -186,6 +190,15 @@ def _rule_based_multiple_extraction(transcription: str, current_time: datetime) 
 def _rule_based_single_extraction(transcription: str, current_time: datetime) -> dict:
     """Analisador inteligente local avançado para um único item com normalização de acentos."""
     text_norm = norm(transcription)
+
+    # Converte números por extenso comuns para dígitos em horários
+    numeros_extenso = {
+        r'\buma\b': '1', r'\bduas\b': '2', r'\btres\b': '3', r'\bquatro\b': '4',
+        r'\bcinco\b': '5', r'\bseis\b': '6', r'\bsete\b': '7', r'\boito\b': '8',
+        r'\bnove\b': '9', r'\bdez\b': '10', r'\bonze\b': '11', r'\bdoze\b': '12'
+    }
+    for padrao, digito in numeros_extenso.items():
+        text_norm = re.sub(padrao, digito, text_norm)
     
     # 1. Identificação de Categoria
     palavras_medicacao = [
@@ -241,14 +254,39 @@ def _rule_based_single_extraction(transcription: str, current_time: datetime) ->
     min_match = re.search(r'(?:daqui\s+a|em)\s+(\d+)\s*minuto', text_norm)
     if min_match:
         target_dt = current_time + timedelta(minutes=int(min_match.group(1)))
-        return _format_result(categoria, transcription, target_dt)
+        return _format_result(categoria, transcription, target_dt, None, _detect_notification_type(text_norm, categoria))
 
     hour_rel_match = re.search(r'(?:daqui\s+a|em)\s+(\d+)\s*horas?', text_norm)
     if hour_rel_match:
         target_dt = current_time + timedelta(hours=int(hour_rel_match.group(1)))
-        return _format_result(categoria, transcription, target_dt)
+        return _format_result(categoria, transcription, target_dt, None, _detect_notification_type(text_norm, categoria))
 
-    # 4. Horário Explícito ou Período do Dia
+    # 4. Detecção de Intervalo Determinado (Início e Término, ex: "das 2 às 4", "das 14h às 16h")
+    tipo_notificacao = _detect_notification_type(text_norm, categoria)
+    interval_match = re.search(r'\b(?:das|de)\s*(\d{1,2})(?:[h:](\d{2})?)?\s*(?:as|as|ate|ate as|ate as|a)\s*(\d{1,2})(?:[h:](\d{2})?)?', text_norm)
+    if interval_match:
+        h1 = int(interval_match.group(1))
+        m1 = int(interval_match.group(2)) if interval_match.group(2) else 0
+        h2 = int(interval_match.group(3))
+        m2 = int(interval_match.group(4)) if interval_match.group(4) else 0
+
+        if h1 < 12 and (re.search(r'\b(?:tarde|noite)\b', text_norm) or (categoria == "compromisso" and h1 in [1, 2, 3, 4, 5, 6])):
+            h1 += 12
+        if h2 < 12 and (h2 <= h1 or re.search(r'\b(?:tarde|noite)\b', text_norm) or h1 >= 12):
+            h2 += 12
+
+        if target_date is None:
+            target_date = current_time.date()
+
+        candidate_dt = datetime(target_date.year, target_date.month, target_date.day, h1, m1)
+        if not has_explicit_date and candidate_dt < current_time:
+            candidate_dt += timedelta(days=1)
+            target_date = candidate_dt.date()
+        target_dt = candidate_dt
+        end_dt = datetime(target_date.year, target_date.month, target_date.day, h2, m2)
+        return _format_result(categoria, transcription, target_dt, end_dt, tipo_notificacao)
+
+    # 5. Horário Explícito ou Período do Dia
     hour = None
     minute = 0
     hora_match = re.search(r'(?:as|as)\s*(\d{1,2})(?:[h:](\d{2})?)?', text_norm)
@@ -290,7 +328,23 @@ def _rule_based_single_extraction(transcription: str, current_time: datetime) ->
         else:
             target_dt = current_time + timedelta(hours=1)
 
-    return _format_result(categoria, transcription, target_dt)
+    return _format_result(categoria, transcription, target_dt, None, tipo_notificacao)
+
+def _detect_notification_type(text_norm: str, categoria: str) -> str:
+    """Identifica o modo de alerta pedido na fala ou aplica o padrão da categoria."""
+    if re.search(r'\b(com alarme|alarme|urgente|despertador|despertar|tocar alarme)\b', text_norm):
+        return "alarme"
+    elif re.search(r'\b(com notificacao|notifique|notificacao|me avisa|me avise)\b', text_norm):
+        return "notificacao"
+    elif re.search(r'\b(sem som|silencioso|so anota|apenas anota|na tela|lembrete de tela)\b', text_norm):
+        return "silencioso"
+    else:
+        if categoria == "medicacao":
+            return "alarme"
+        elif categoria == "compromisso":
+            return "notificacao"
+        else:
+            return "silencioso"
 
 def clean_concise_title(transcription: str, categoria: str = "tarefa") -> str:
     """
@@ -335,11 +389,13 @@ def clean_concise_title(transcription: str, categoria: str = "tarefa") -> str:
         r'\b(?:de|pela|na|a)?\s*(?:manh[aã]|tarde|noite|madrugada)\b',
         r'\b(?:do dia de hoje|nesta semana|neste m[eê]s)\b',
         r'\b(?:na|nesta|pr[oó]xim[ao])?\s*(?:segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo)(?:-feira)?\b',
-        r'\b[aàá]s\s*\d{1,2}(?:[h:]\d{2})?(?:\s*(?:da tarde|da noite|da manh[aã]))?\b',
+        r'\b(?:das|de)\s*(?:\d{1,2}|uma|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)(?:[h:]\d{2})?\s*(?:[aàá]s|at[eé]|at[eé]\s+[aàá]s|a)\s*(?:\d{1,2}|uma|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)(?:[h:]\d{2})?\b',
+        r'\b[aàá]s\s*(?:\d{1,2}|uma|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)(?:[h:]\d{2})?(?:\s*(?:da tarde|da noite|da manh[aã]))?\b',
         r'\b\d{1,2}\s*h(?:oras?)?\b',
         r'\bdaqui\s+a\s+\d+\s*(?:minutos?|horas?|dias?)\b',
         r'\bem\s+\d+\s*(?:minutos?|horas?|dias?)\b',
         r'\bpara\s+o\s+dia\s+\d{1,2}(?:\s+de\s+[a-z]+)?\b',
+        r'\b(?:com alarme|urgente|sem som|silencioso|so anota|apenas anota)\b',
     ]
     for p in patterns_to_remove:
         t = re.sub(p, '', t, flags=re.IGNORECASE)
@@ -368,7 +424,7 @@ def clean_concise_title(transcription: str, categoria: str = "tarefa") -> str:
     else:
         return "Lembrete de Tarefa"
 
-def _format_result(categoria: str, transcription: str, target_dt: datetime) -> dict:
+def _format_result(categoria: str, transcription: str, target_dt: datetime, end_dt: datetime = None, tipo_notificacao: str = 'padrao') -> dict:
     """Higieniza o título e retorna o dicionário formatado."""
     titulo = clean_concise_title(transcription, categoria)
 
@@ -376,5 +432,7 @@ def _format_result(categoria: str, transcription: str, target_dt: datetime) -> d
         "categoria": categoria,
         "titulo": titulo,
         "data_hora_alvo": target_dt.strftime("%Y-%m-%dT%H:%M:%S") if target_dt else None,
+        "data_hora_fim": end_dt.strftime("%Y-%m-%dT%H:%M:%S") if end_dt else None,
+        "tipo_notificacao": tipo_notificacao,
         "tempo_checagem_minutos": 15
     }
