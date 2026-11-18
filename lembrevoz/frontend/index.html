@@ -6,7 +6,7 @@
   <title>Bem Lembrado - Organização por Voz</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="stylesheet" href="css/style.css?v=20261110_02">
+  <link rel="stylesheet" href="css/style.css?v=20261118_01">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0066ff">
 </head>
@@ -34,10 +34,12 @@
     <!-- Banner Modo Cuidador -->
     <div id="caregiver-banner" class="caregiver-banner" style="display: none;">
       <div class="caregiver-banner-content">
-        <span id="caregiver-banner-title">🩺 <strong>Modo Cuidador:</strong> Acompanhando Dona Maria</span>
+        <div id="caregiver-banner-title">
+          <span>🩺</span> <strong>Modo Cuidador:</strong> Acompanhando Dona Maria
+        </div>
         <div class="caregiver-banner-actions">
           <button id="btn-caregiver-share-routine" class="btn-caregiver-routine" title="Enviar resumo da rotina de hoje no WhatsApp">📋 Enviar Rotina</button>
-          <button id="btn-caregiver-quick-msg" class="btn-caregiver-zap">📱 WhatsApp</button>
+          <button id="btn-caregiver-quick-msg" class="btn-caregiver-zap" title="Enviar mensagem no WhatsApp">📱 WhatsApp</button>
           <button id="btn-caregiver-report" class="btn-caregiver-report" title="Ver relatório de adesão">📊 Adesão</button>
         </div>
       </div>
@@ -136,14 +138,14 @@
               <h4>Visão Conforto</h4>
               <p>Modo escuro com alto contraste</p>
             </div>
-            <input type="checkbox" id="chk-settings-conforto" style="width: 20px; height: 20px;">
+            <input type="checkbox" id="chk-settings-conforto" class="settings-checkbox">
           </div>
           <div class="settings-option">
             <div class="settings-option-text">
               <h4>Tamanho das Fontes</h4>
               <p>Ajuste para facilitar a leitura</p>
             </div>
-            <select id="select-font-size" style="padding: 6px; border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-primary);">
+            <select id="select-font-size" class="settings-select">
               <option value="normal">Normal (100%)</option>
               <option value="grande">Grande (125%)</option>
               <option value="extra-grande">Extra Grande (150%)</option>
@@ -154,14 +156,12 @@
         <!-- Grupo: Pessoa de Confiança / Cuidador -->
         <div class="settings-group">
           <div class="settings-group-title">Pessoa de Confiança (Cuidador)</div>
-          <div class="settings-option">
+          <div class="settings-option" style="flex-direction: column; align-items: stretch; gap: 8px;">
             <div class="settings-option-text">
               <h4>WhatsApp do Cuidador</h4>
               <p>Número para avisos caso o remédio não seja tomado</p>
             </div>
-          </div>
-          <div style="padding: 0 12px 10px 12px;">
-            <input type="tel" id="input-cuidador-phone" placeholder="Ex: 11999998888 (com DDD)" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-primary);">
+            <input type="tel" id="input-cuidador-phone" class="settings-input" placeholder="Ex: 11999998888 (com DDD)">
           </div>
         </div>
 
@@ -173,14 +173,14 @@
               <h4>Gesto de Deslizar (Swipe)</h4>
               <p>Arrastar o cartão para os lados para apagar rapidamente</p>
             </div>
-            <input type="checkbox" id="chk-settings-swipe" checked style="width: 20px; height: 20px;">
+            <input type="checkbox" id="chk-settings-swipe" class="settings-checkbox" checked>
           </div>
           <div class="settings-option" id="opt-trash-toggle">
             <div class="settings-option-text">
               <h4>Botão de Lixeira Visível</h4>
               <p>Exibe o botão clássico de exclusão no rodapé do cartão</p>
             </div>
-            <input type="checkbox" id="chk-settings-trash" checked style="width: 20px; height: 20px;">
+            <input type="checkbox" id="chk-settings-trash" class="settings-checkbox" checked>
           </div>
         </div>
 
@@ -192,14 +192,14 @@
               <h4>Retorno por Voz</h4>
               <p>Ativa respostas de voz (leitura em voz alta) para ações e alarmes</p>
             </div>
-            <input type="checkbox" id="chk-settings-voice" checked style="width: 20px; height: 20px;">
+            <input type="checkbox" id="chk-settings-voice" class="settings-checkbox" checked>
           </div>
           <div class="settings-option">
             <div class="settings-option-text">
               <h4>Velocidade da Fala</h4>
               <p>Ritmo da leitura em voz alta (TTS)</p>
             </div>
-            <select id="select-voice-speed" style="padding: 6px; border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-primary); max-width: 160px;">
+            <select id="select-voice-speed" class="settings-select">
               <option value="0.8">Lenta e pausada (0.8x)</option>
               <option value="0.95" selected>Normal / Calma (1.0x)</option>
               <option value="1.2">Rápida (1.2x)</option>
@@ -215,7 +215,7 @@
               <h4>Perfil: <span id="settings-current-profile-name" style="color: var(--primary);">Dona Maria</span></h4>
               <p id="profile-desc">Modo Simplificado / Idoso</p>
             </div>
-            <button id="btn-settings-open-profiles" class="btn-caregiver-zap" style="background: var(--primary); font-size: 0.8rem; padding: 6px 10px;">
+            <button id="btn-settings-open-profiles" class="btn-settings-profile">
               Trocar Perfil ➔
             </button>
           </div>
@@ -229,14 +229,14 @@
               <h4>Relatório de Adesão à Medicação</h4>
               <p>Histórico e estatísticas de remédios tomados</p>
             </div>
-            <span style="font-size: 1.25rem;">📊</span>
+            <span class="settings-icon-preview">📊</span>
           </div>
           <div class="settings-option" id="opt-settings-tutorial" style="cursor: pointer;">
             <div class="settings-option-text">
               <h4>Apresentação e Tutorial</h4>
               <p>Rever o carrossel de introdução e guia das funções</p>
             </div>
-            <span style="font-size: 1.25rem;">✨</span>
+            <span class="settings-icon-preview">✨</span>
           </div>
         </div>
 
@@ -519,8 +519,8 @@
     </div>
 
     <!-- Scripts da Aplicação -->
-    <script src="js/notifications.js?v=20261117_01"></script>
-    <script src="js/voice.js?v=20261117_01"></script>
-    <script src="js/app.js?v=20261117_01"></script>
+    <script src="js/notifications.js?v=20261118_01"></script>
+    <script src="js/voice.js?v=20261118_01"></script>
+    <script src="js/app.js?v=20261118_01"></script>
   </body>
 </html>
