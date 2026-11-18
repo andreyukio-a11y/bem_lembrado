@@ -1735,3 +1735,115 @@ body.modo-simplificado .btn-simplified-confirm:active {
   font-size: 1rem;
 }
 
+/* ==========================================================================
+   Novas Funcionalidades: Resumo Diário, WhatsApp Rotina & Gráfico de Adesão
+   ========================================================================== */
+
+.btn-daily-summary {
+  background: rgba(0, 102, 255, 0.08);
+  border: 1px solid rgba(0, 102, 255, 0.2);
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-daily-summary:hover {
+  background: rgba(0, 102, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+.action-divider {
+  color: var(--text-secondary);
+  opacity: 0.5;
+  margin: 0 4px;
+  font-size: 0.8rem;
+}
+
+.btn-caregiver-routine {
+  background: #0284c7;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 0.2s;
+}
+
+.btn-caregiver-routine:hover {
+  opacity: 0.9;
+}
+
+/* Gráfico Visual de Adesão à Medicação */
+.adherence-visual-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.adherence-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.adherence-pct {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #10b981;
+}
+
+.adherence-pct.warning {
+  color: #f59e0b;
+}
+
+.adherence-pct.danger {
+  color: #ef4444;
+}
+
+.adherence-bar-track {
+  width: 100%;
+  height: 12px;
+  background: var(--input-bg, #f1f5f9);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.adherence-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #10b981, #059669);
+  border-radius: 6px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.adherence-bar-fill.warning {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.adherence-bar-fill.danger {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+.adherence-feedback-msg {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+

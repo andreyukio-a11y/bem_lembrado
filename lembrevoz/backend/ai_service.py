@@ -86,25 +86,32 @@ def classify_and_extract(transcription: str, current_time: datetime = None) -> d
     return result
 
 def _call_gemini_api(transcription: str, current_time: datetime) -> dict:
-    """Chama a API do Google Gemini usando urllib."""
+    """Chama a API do Google Gemini usando urllib com fallback de modelos."""
     import urllib.request
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    models_to_try = [
+        "gemini-1.5-flash",
+        "gemini-2.0-flash",
+        "gemini-2.5-flash"
+    ]
     
     prompt = f"""
 Você é o assistente inteligente do aplicativo 'Bem Lembrado'.
 Analise o comando de voz do usuário. O usuário pode ter falado UMA ou VÁRIAS atividades/tarefas/remédios em uma única frase contínua (exemplo: "tenho uma reunião às 14h, preciso comprar pão e tomar o remédio às 18h").
 
-Regras:
-1. Se houver mais de uma atividade, separe-as em elementos distintos na lista 'itens'.
-2. Se houver apenas uma atividade, 'itens' terá 1 elemento.
-3. Para cada item:
-   - 'categoria': exatamente uma destas: "medicacao", "compromisso" ou "tarefa".
-   - 'titulo': Extremamente conciso e direto (máximo 3 a 5 palavras). Apenas o nome da tarefa/remédio (ex: "Tomar Dipirona", "Reunião KPI", "Comprar Pão", "Limpar a Casa"). NUNCA coloque datas ou horários no título.
-   - 'data_hora_alvo': Data e hora no formato ISO (YYYY-MM-DDTHH:MM:SS) de início calculadas a partir da fala (ou null se não informada).
-   - 'data_hora_fim': Data e hora no formato ISO (YYYY-MM-DDTHH:MM:SS) de término quando a fala indicar um intervalo/duração (ex: "reunião das 14h às 16h", "aula das 8h às 11h") ou null.
-   - 'tipo_notificacao': Forma de apresentação do lembrete: "alarme" (com som contínuo e voz), "notificacao" (aviso push no horário) ou "silencioso" (apenas lembrete visual na tela). Regra padrão: remédio = "alarme", compromisso = "notificacao", tarefa = "silencioso", a menos que o usuário peça explicitamente (ex: "com alarme", "sem som", "urgente").
-   - 'tempo_checagem_minutos': 15 para medicação.
+ATENÇÃO CRUCIAL PARA MÚLTIPLAS DEMANDAS:
+- Separe rigorosamente cada atividade individual. NUNCA misture o horário de uma atividade com o remédio ou tarefa de outra!
+- Se o usuário disser "remédio para pressão às 8h e remédio para ansiedade à meia-noite", gere EXATAMENTE 2 itens:
+  Item 1: titulo "Remédio de Pressão", horário 08:00 (ou do dia indicado).
+  Item 2: titulo "Remédio de Ansiedade", horário 00:00 (meia-noite).
+
+Regras de cada item:
+1. 'categoria': exatamente uma destas: "medicacao", "compromisso" ou "tarefa".
+2. 'titulo': Extremamente conciso e direto (máximo 2 a 4 palavras). Apenas o nome da tarefa/remédio (ex: "Remédio de Pressão", "Remédio de Ansiedade", "Tomar Dipirona", "Reunião de Trabalho", "Comprar Pão", "Limpar a Casa"). NUNCA coloque datas ou horários no título.
+3. 'data_hora_alvo': Data e hora no formato ISO (YYYY-MM-DDTHH:MM:SS) de início calculadas a partir da fala (ou null se não informada).
+4. 'data_hora_fim': Data e hora no formato ISO (YYYY-MM-DDTHH:MM:SS) de término quando a fala indicar um intervalo/duração (ex: "reunião das 14h às 16h", "aula das 8h às 11h") ou null.
+5. 'tipo_notificacao': "alarme" (para medicamentos ou urgentes), "notificacao" (compromissos) ou "silencioso" (tarefas simples), a menos que solicitado diferente pelo usuário.
+6. 'tempo_checagem_minutos': 15 para medicação.
 
 Data e hora atual de referência: {current_time.strftime('%Y-%m-%d %H:%M:%S')} (Dia da semana: {current_time.strftime('%A')}).
 Frase dita pelo usuário: "{transcription}"
@@ -127,36 +134,65 @@ Responda APENAS com um objeto JSON válido:
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.1, "responseMimeType": "application/json"}
     }
-    
     req_data = json.dumps(payload).encode('utf-8')
-    req = urllib.request.Request(url, data=req_data, headers={"Content-Type": "application/json"})
-    
-    with urllib.request.urlopen(req, timeout=6) as response:
-        if response.status == 200:
-            res_body = response.read().decode('utf-8')
-            data = json.loads(res_body)
-            raw_text = data['candidates'][0]['content']['parts'][0]['text']
-            parsed = json.loads(raw_text)
-            if isinstance(parsed, list):
-                return {"itens": parsed}
-            return parsed
-        else:
-            raise RuntimeError(f"Erro Gemini HTTP {response.status}")
+
+    last_error = None
+    for model_name in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+        req = urllib.request.Request(url, data=req_data, headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=6) as response:
+                if response.status == 200:
+                    res_body = response.read().decode('utf-8')
+                    data = json.loads(res_body)
+                    raw_text = data['candidates'][0]['content']['parts'][0]['text']
+                    parsed = json.loads(raw_text)
+                    if isinstance(parsed, list):
+                        return {"itens": parsed}
+                    return parsed
+        except Exception as e:
+            last_error = e
+            continue
+
+    raise RuntimeError(f"Erro Gemini API: {last_error}")
 
 def split_multiple_intents(text: str) -> list:
-    """Divide um fluxo de fala contínuo com múltiplos itens em segmentos independentes."""
+    """Divide um fluxo de fala contínuo com múltiplos itens em segmentos independentes com máxima precisão."""
     if not text or not text.strip():
         return []
 
     s = text.strip()
 
-    # 1. Quebras por pontuação ou conectivos de sequência
+    # 1. Quebras por pontuação padrão
     s = re.sub(r'\s*(?:;\s*|\.\s+)\s*', ' ||| ', s)
-    s = re.sub(r'\s*(?:,\s*|\s+)(?:e\s+depois|depois|em\s+seguida|al[eé]m\s+disso|e\s+tamb[eé]m)\s+', ' ||| ', s, flags=re.IGNORECASE)
-
-    # 2. Quebras por novas orações de ação com conjunção
+    
+    # 2. Conectivos explícitos de sequência
     s = re.sub(
-        r'\s*(?:,\s*|\s+e\s+|\s+a[ií]\s+)(?=(?:eu\s+)?(?:tenho que|preciso|vou|quero|lembrar de|tomar|fazer|limpar|comprar|ir\s+ao?|consulta|reuni[aã]o))\b',
+        r'\s*(?:,\s*|\s+)(?:e\s+depois|depois|em\s+seguida|al[eé]m\s+disso|e\s+tamb[eé]m|e\s+al[eé]m\s+disso|logo\s+ap[oó]s|e\s+por\s+fim)\s+',
+        ' ||| ',
+        s,
+        flags=re.IGNORECASE
+    )
+
+    # 3. Quebras por novas orações de ação com conjunção 'e' ou 'aí'
+    s = re.sub(
+        r'\s*(?:,\s*|\s+e\s+|\s+a[ií]\s+)(?=(?:eu\s+)?(?:tenho\s+(?:que|de|um|uma)?|preciso\s+(?:de)?|vou\s+|quero\s+|lembrar\s+(?:de)?|n[aã]o\s+esquecer\s+(?:de)?|tomar\s+|beber\s+|pingar\s+|aplicar\s+|fazer\s+|limpar\s+|lavar\s+|comprar\s+|pagar\s+|ligar\s+|ir\s+(?:ao?|para)?|consulta\s+|reuni[aã]o\s+|aula\s+|treino\s+|dentista\s+|m[eé]dico\s+|(?:o\s+|a\s+|um\s+|uma\s+)?(?:rem[eé]dio|medicamento|comprimido|gotas?|dose)\b))\b',
+        ' ||| ',
+        s,
+        flags=re.IGNORECASE
+    )
+
+    # 4. Quebras por novo horário introduzido por conjunção
+    s = re.sub(
+        r'\s+(?:e\s+|a[ií]\s+)(?=(?:[aàá]s\s*\d{1,2}|ao\s+meio[\s-]dia|a\s+meia[\s-]noite|de\s+manh[aã]|de\s+tarde|de\s+noite|na\s+manh[aã]|na\s+tarde|na\s+noite)\b)',
+        ' ||| ',
+        s,
+        flags=re.IGNORECASE
+    )
+
+    # 5. Quebras por indicação de outro medicamento (ex: "e de ansiedade", "e para pressão")
+    s = re.sub(
+        r'\s+(?:e\s+|a[ií]\s+)(?=(?:o\s+|a\s+|um\s+|uma\s+)?(?:de\s+|para\s+|pro\s+|pra\s+)?(?:ansiedade|press[aã]o|diabetes|dor|sono|dormir|colesterol|cora[cç][aã]o|est[oô]mago|tireoide|febre|gripe|calmante)\b)',
         ' ||| ',
         s,
         flags=re.IGNORECASE
@@ -173,10 +209,13 @@ def _rule_based_multiple_extraction(transcription: str, current_time: datetime) 
     items = []
     for piece in intents:
         item_data = _rule_based_single_extraction(piece, current_time)
+        item_data["transcricao_trecho"] = piece
         items.append(item_data)
 
     if not items:
-        items = [_rule_based_single_extraction(transcription, current_time)]
+        item_data = _rule_based_single_extraction(transcription, current_time)
+        item_data["transcricao_trecho"] = transcription
+        items = [item_data]
 
     first = items[0]
     return {
@@ -204,11 +243,13 @@ def _rule_based_single_extraction(transcription: str, current_time: datetime) ->
     palavras_medicacao = [
         "remedio", "medicacao", "comprimido", "pressao", "gotas", "insulina", 
         "dipirona", "losartana", "antibiotico", "farmacia", "dose", "tomar", 
-        "pomada", "colirio", "injecao", "xarope", "vitamina", "inalacao"
+        "pomada", "colirio", "injecao", "xarope", "vitamina", "inalacao",
+        "ansiedade", "calmante", "colesterol", "estomago", "tireoide", "sono", "dormir",
+        "dor", "febre", "gripe", "antialergico", "clonazepam", "rivotril", "fluoxetina", "sertralina"
     ]
     palavras_compromisso = [
         "medico", "consulta", "dentista", "reuniao", "encontro", "aula", 
-        "visita", "prova", "seminario", "apresentacao", "entrevista", "orientador", "orientacao"
+        "visita", "prova", "seminario", "apresentacao", "entrevista", "orientador", "orientacao", "treino"
     ]
     
     categoria = "tarefa"
@@ -270,9 +311,9 @@ def _rule_based_single_extraction(transcription: str, current_time: datetime) ->
         h2 = int(interval_match.group(3))
         m2 = int(interval_match.group(4)) if interval_match.group(4) else 0
 
-        if h1 < 12 and (re.search(r'\b(?:tarde|noite)\b', text_norm) or (categoria == "compromisso" and h1 in [1, 2, 3, 4, 5, 6])):
+        if h1 < 12 and (re.search(r'(?<!meia[-\s])\b(?:tarde|noite|da tarde|da noite)\b', text_norm) or (categoria == "compromisso" and h1 in [1, 2, 3, 4, 5, 6])):
             h1 += 12
-        if h2 < 12 and (h2 <= h1 or re.search(r'\b(?:tarde|noite)\b', text_norm) or h1 >= 12):
+        if h2 < 12 and (h2 <= h1 or re.search(r'(?<!meia[-\s])\b(?:tarde|noite|da tarde|da noite)\b', text_norm) or h1 >= 12):
             h2 += 12
 
         if target_date is None:
@@ -294,16 +335,23 @@ def _rule_based_single_extraction(transcription: str, current_time: datetime) ->
         hour = int(hora_match.group(1))
         minute = int(hora_match.group(2)) if hora_match.group(2) else 0
 
-        if re.search(r'\b(?:noite|tarde)\b', text_norm) and hour < 12:
+        # Aplica período apenas se não for parte de 'meia-noite'
+        if re.search(r'(?<!meia[-\s])\b(?:da\s+noite|da\s+tarde|a\s+noite|a\s+tarde|pela\s+tarde|pela\s+noite)\b', text_norm) and hour < 12:
+            hour += 12
+        elif hour in [1, 2, 3, 4, 5, 6] and not re.search(r'\b(?:da\s+manha|pela\s+manha|na\s+manha|madrugada)\b', text_norm):
             hour += 12
         elif re.search(r'\b(?:manha|madrugada)\b', text_norm) and hour == 12:
             hour = 0
     else:
-        # Períodos sem hora exata (usando word boundaries estritos para nunca confundir amanhã com manhã)
+        # Períodos sem hora exata
         if re.search(r'\bmeio[\s-]dia\b', text_norm):
             hour, minute = 12, 0
         elif re.search(r'\bmeia[\s-]noite\b', text_norm):
             hour, minute = 0, 0
+            # Meia-noite da próxima virada
+            if target_date is None:
+                target_date = current_time.date() + timedelta(days=1)
+                has_explicit_date = True
         elif re.search(r'\b(?:de\s+|pela\s+|na\s+)?manha\b', text_norm):
             hour, minute = 8, 0
         elif re.search(r'\b(?:de\s+|a\s+|pela\s+)?tarde\b', text_norm):
@@ -360,16 +408,32 @@ def clean_concise_title(transcription: str, categoria: str = "tarefa") -> str:
         dose_match = re.search(r'(\d+(?:[.,]\d+)?\s*(?:mg|ml|g|caps|comprimidos|gotas))', txt_lower)
         dose = dose_match.group(1) if dose_match else ""
 
-        med_match = re.search(r'\b(dipirona|losartana|paracetamol|ibuprofeno|omeprazol|atenolol|metformina|sinvastatina|clonazepam|insulina|antibi[oó]tico|antial[eé]rgico|vitamina\s*[a-z0-9]*|col[ií]rio|pomada|press[aã]o|diabetes)\b', txt_lower)
+        # Mapeamento semântico de condições / finalidades de remédios
+        condicoes = [
+            (r'\bpress[aã]o\b', 'Remédio de Pressão'),
+            (r'\bansiedade\b', 'Remédio de Ansiedade'),
+            (r'\bdiabetes\b', 'Remédio de Diabetes'),
+            (r'\bcolesterol\b', 'Remédio de Colesterol'),
+            (r'\best[oô]mago\b', 'Remédio de Estômago'),
+            (r'\bcora[cç][aã]o\b', 'Remédio do Coração'),
+            (r'\btireoide\b', 'Remédio de Tireoide'),
+            (r'\b(?:dormir|sono)\b', 'Remédio para Dormir'),
+            (r'\bcalmante\b', 'Tomar Calmante'),
+            (r'\bdor\b', 'Remédio para Dor'),
+            (r'\bfebre\b', 'Remédio para Febre'),
+            (r'\bgripe\b', 'Remédio para Gripe'),
+        ]
+        for cond_pat, cond_nome in condicoes:
+            if re.search(cond_pat, txt_lower):
+                title = cond_nome
+                if dose:
+                    title += f" ({dose})"
+                return title
 
+        med_match = re.search(r'\b(dipirona|losartana|paracetamol|ibuprofeno|omeprazol|atenolol|metformina|sinvastatina|clonazepam|rivotril|fluoxetina|sertralina|diazepam|insulina|antibi[oó]tico|antial[eé]rgico|vitamina\s*[a-z0-9]*|col[ií]rio|pomada)\b', txt_lower)
         if med_match:
             med = med_match.group(1).capitalize()
-            if "press" in med.lower():
-                title = "Remédio de Pressão"
-            elif "diabet" in med.lower():
-                title = "Remédio de Diabetes"
-            else:
-                title = f"Tomar {med}"
+            title = f"Tomar {med}"
             if dose:
                 title += f" ({dose})"
             return title

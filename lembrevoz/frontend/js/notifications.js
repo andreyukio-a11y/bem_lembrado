@@ -8,6 +8,7 @@ class SoundNotificationManager {
     this.alarmInterval = null;
     this.isAlarmRunning = false;
     this.voiceFeedbackEnabled = true;
+    this.speechRate = parseFloat(localStorage.getItem("bemlembrado_voice_rate")) || 0.95;
   }
 
   _initAudioContext() {
@@ -17,14 +18,14 @@ class SoundNotificationManager {
     }
   }
 
-  // Síntese de Voz Nativa (Text-to-Speech) em Português do Brasil
-  speak(text) {
+  // Síntese de Voz Nativa (Text-to-Speech) em Português do Brasil com velocidade configurável
+  speak(text, customRate = null) {
     if (!this.voiceFeedbackEnabled || !("speechSynthesis" in window)) return;
     try {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = "pt-BR";
-      utterance.rate = 0.95; // Ritmo calmo e legível para pessoas idosas
+      utterance.rate = customRate || this.speechRate || 0.95; // Velocidade ajustável (0.8x lenta, 1.0x normal, 1.2x rápida)
       utterance.pitch = 1.0;
       window.speechSynthesis.speak(utterance);
     } catch (e) {

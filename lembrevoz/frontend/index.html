@@ -36,6 +36,7 @@
       <div class="caregiver-banner-content">
         <span id="caregiver-banner-title">🩺 <strong>Modo Cuidador:</strong> Acompanhando Dona Maria</span>
         <div class="caregiver-banner-actions">
+          <button id="btn-caregiver-share-routine" class="btn-caregiver-routine" title="Enviar resumo da rotina de hoje no WhatsApp">📋 Enviar Rotina</button>
           <button id="btn-caregiver-quick-msg" class="btn-caregiver-zap">📱 WhatsApp</button>
           <button id="btn-caregiver-report" class="btn-caregiver-report" title="Ver relatório de adesão">📊 Adesão</button>
         </div>
@@ -57,7 +58,9 @@
         <p id="voice-status" class="voice-status">Toque no microfone para falar</p>
         <p id="live-transcription" class="live-transcription"></p>
         <div class="text-input-hint">
-          <button id="btn-manual-type" class="btn-manual-input">Ou digite o lembrete por texto</button>
+          <button id="btn-manual-type" class="btn-manual-input">⌨️ Digitar texto</button>
+          <span class="action-divider">·</span>
+          <button id="btn-daily-summary" class="btn-daily-summary" title="Ouvir o resumo falado do seu dia">🔊 Ouvir meu dia</button>
         </div>
       </section>
 
@@ -183,13 +186,24 @@
 
         <!-- Grupo: Feedback de Voz -->
         <div class="settings-group">
-          <div class="settings-group-title">Feedback de Voz</div>
+          <div class="settings-group-title">Feedback e Síntese de Voz</div>
           <div class="settings-option" id="opt-voice-toggle">
             <div class="settings-option-text">
               <h4>Retorno por Voz</h4>
-              <p>Ativa respostas de voz (leitura em voz alta) para ações e alarmes do aplicativo</p>
+              <p>Ativa respostas de voz (leitura em voz alta) para ações e alarmes</p>
             </div>
             <input type="checkbox" id="chk-settings-voice" checked style="width: 20px; height: 20px;">
+          </div>
+          <div class="settings-option">
+            <div class="settings-option-text">
+              <h4>Velocidade da Fala</h4>
+              <p>Ritmo da leitura em voz alta (TTS)</p>
+            </div>
+            <select id="select-voice-speed" style="padding: 6px; border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-primary); max-width: 160px;">
+              <option value="0.8">Lenta e pausada (0.8x)</option>
+              <option value="0.95" selected>Normal / Calma (1.0x)</option>
+              <option value="1.2">Rápida (1.2x)</option>
+            </select>
           </div>
         </div>
 
@@ -277,10 +291,6 @@
 
   </div>
 
-  <script src="js/notifications.js?v=20261110_02"></script>
-  <script src="js/voice.js?v=20261110_02"></script>
-  <script src="js/app.js?v=20261110_02"></script>
-
     <!-- Modal de Relatório de Adesão à Medicação -->
     <div id="report-modal" class="modal-overlay" style="display: none;">
       <div class="modal-content">
@@ -289,15 +299,30 @@
           <button id="btn-close-report" class="btn-close-modal">&times;</button>
         </div>
         <div class="report-body">
-          <div class="report-stats grid">
-            <div><strong>Total de Doses:</strong> <span id="report-total"></span></div>
-            <div><strong>Doses Tomadas:</strong> <span id="report-taken"></span></div>
-            <div><strong>Taxa de Adesão:</strong> <span id="report-rate"></span></div>
-            <div><strong>Doses Pendentes:</strong> <span id="report-pending"></span></div>
+          <!-- Gráfico Visual de Adesão Semanal / Geral -->
+          <div class="adherence-visual-card">
+            <div class="adherence-header-row">
+              <span style="font-weight: 700; font-size: 0.95rem;">Índice de Adesão Geral</span>
+              <span id="adherence-percentage" class="adherence-pct">0%</span>
+            </div>
+            <div class="adherence-bar-track">
+              <div id="adherence-bar-fill" class="adherence-bar-fill" style="width: 0%;"></div>
+            </div>
+            <p id="adherence-feedback-msg" class="adherence-feedback-msg">Calculando adesão às medicações...</p>
           </div>
-          <h4>Histórico</h4>
+
+          <div class="report-stats grid">
+            <div><strong>Total de Doses:</strong> <span id="report-total">-</span></div>
+            <div><strong>Doses Tomadas:</strong> <span id="report-taken">-</span></div>
+            <div><strong>Taxa de Adesão:</strong> <span id="report-rate">-</span></div>
+            <div><strong>Doses Pendentes:</strong> <span id="report-pending">-</span></div>
+          </div>
+          <h4>Histórico de Medicações</h4>
           <ul id="report-history" class="report-history"></ul>
-          <button id="btn-share-report" class="btn-primary">Compartilhar</button>
+          <div style="display: flex; gap: 10px; margin-top: 14px;">
+            <button id="btn-share-report" class="btn-primary" style="flex: 1.5;">📱 Compartilhar no WhatsApp</button>
+            <button id="btn-close-report-action" class="btn-cancel-reg" style="flex: 1;">Fechar</button>
+          </div>
         </div>
       </div>
     </div>
@@ -493,5 +518,9 @@
       </div>
     </div>
 
+    <!-- Scripts da Aplicação -->
+    <script src="js/notifications.js?v=20261117_01"></script>
+    <script src="js/voice.js?v=20261117_01"></script>
+    <script src="js/app.js?v=20261117_01"></script>
   </body>
 </html>

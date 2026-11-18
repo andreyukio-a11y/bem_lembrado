@@ -59,7 +59,7 @@ def process_voice(req: VoiceRequest):
     for it in items_to_create:
         item_id = add_item(
             titulo=it.get("titulo", clean_text),
-            transcricao_original=clean_text,
+            transcricao_original=it.get("transcricao_trecho", clean_text),
             categoria=it.get("categoria", "tarefa"),
             data_hora_alvo=it.get("data_hora_alvo"),
             tempo_checagem=it.get("tempo_checagem_minutos", 15),
@@ -91,8 +91,8 @@ def batch_remove(req: BatchDeleteRequest):
     return {"success": True}
 
 @app.get("/api/reports/adherence")
-def adherence_report():
-    report = get_adherence_report()
+def adherence_report(usuario_id: Optional[str] = None):
+    report = get_adherence_report(usuario_id=usuario_id)
     return report
 
 @app.post("/api/items/{item_id}/status")

@@ -57,6 +57,8 @@ function initApp() {
   const btnConfirmNo = document.getElementById("btn-confirm-no");
   const btnSimulateAlarm = document.getElementById("btn-simulate-alarm");
   const btnManualType = document.getElementById("btn-manual-type");
+  const btnDailySummary = document.getElementById("btn-daily-summary");
+  const btnCaregiverShareRoutine = document.getElementById("btn-caregiver-share-routine");
 
   let allLoadedItems = [];
   let currentFilter = "todos";
@@ -83,35 +85,77 @@ function initApp() {
   const reportModal = document.getElementById('report-modal');
   const btnCloseReport = document.getElementById('btn-close-report');
   const btnShareReport = document.getElementById('btn-share-report');
+  const btnCloseReportAction = document.getElementById('btn-close-report-action');
   const reportTotal = document.getElementById('report-total');
   const reportTaken = document.getElementById('report-taken');
   const reportRate = document.getElementById('report-rate');
   const reportPending = document.getElementById('report-pending');
   const reportHistory = document.getElementById('report-history');
+  const adherencePercentage = document.getElementById('adherence-percentage');
+  const adherenceBarFill = document.getElementById('adherence-bar-fill');
+  const adherenceFeedbackMsg = document.getElementById('adherence-feedback-msg');
 
   function openReportModal() {
-    fetch('/api/reports/adherence')
+    const profileParam = activeProfile && activeProfile.id ? `?usuario_id=${encodeURIComponent(activeProfile.id)}` : '';
+    fetch(`/api/reports/adherence${profileParam}`)
       .then(res => res.json())
       .then(data => {
-        reportTotal.textContent = data.total_doses ?? '-';
-        reportTaken.textContent = data.taken_doses ?? '-';
-        reportRate.textContent = data.adherence_rate ? `${(data.adherence_rate*100).toFixed(1)}%` : '-';
-        reportPending.textContent = data.pending_doses ?? '-';
+        reportTotal.textContent = data.total_doses ?? '0';
+        reportTaken.textContent = data.taken_doses ?? '0';
+        const rawRate = data.adherence_rate != null ? Number(data.adherence_rate) : 0;
+        const pct = Math.round(rawRate * 100);
+        reportRate.textContent = `${pct}%`;
+        reportPending.textContent = data.pending_doses ?? '0';
+
+        // Atualiza Gráfico Visual de Barra
+        if (adherencePercentage) {
+          adherencePercentage.textContent = `${pct}%`;
+          adherencePercentage.className = 'adherence-pct' + (pct >= 70 ? '' : pct >= 40 ? ' warning' : ' danger');
+        }
+        if (adherenceBarFill) {
+          // Pequeno timeout para transição visual suave
+          setTimeout(() => {
+            adherenceBarFill.style.width = `${pct}%`;
+            adherenceBarFill.className = 'adherence-bar-fill' + (pct >= 70 ? '' : pct >= 40 ? ' warning' : ' danger');
+          }, 50);
+        }
+        if (adherenceFeedbackMsg) {
+          if (data.total_doses === 0) {
+            adherenceFeedbackMsg.textContent = 'Nenhuma medicação registrada no período ainda.';
+          } else if (pct >= 80) {
+            adherenceFeedbackMsg.textContent = '🌟 Excelente adesão! Todos os remédios estão sendo tomados rigorosamente nos horários.';
+          } else if (pct >= 50) {
+            adherenceFeedbackMsg.textContent = '⚠️ Adesão moderada. Fique atento aos avisos para não esquecer as doses.';
+          } else {
+            adherenceFeedbackMsg.textContent = '🚨 Adesão baixa. Lembre-se de confirmar o aviso de remédio assim que tomar.';
+          }
+        }
+
         // Populate history list
         reportHistory.innerHTML = '';
-        if (Array.isArray(data.history)) {
+        if (Array.isArray(data.history) && data.history.length > 0) {
           data.history.forEach(entry => {
             const li = document.createElement('li');
-            li.textContent = `${entry.date}: ${entry.taken ? 'Tomada' : 'Pendência'} (${entry.dose_count} doses)`;
+            li.textContent = `${entry.date}: ${entry.taken ? '✅ Tomada' : '⏳ Pendência'} (${entry.dose_count} dose${entry.dose_count > 1 ? 's' : ''})`;
             reportHistory.appendChild(li);
           });
+        } else {
+          const li = document.createElement('li');
+          li.textContent = 'Nenhum histórico recente registrado.';
+          li.style.color = 'var(--text-secondary)';
+          reportHistory.appendChild(li);
         }
         if (reportModal) reportModal.style.display = 'flex';
       })
-      .catch(err => console.error('Erro ao obter relatório:', err));
+      .catch(err => {
+        console.error('Erro ao obter relatório:', err);
+        if (reportModal) reportModal.style.display = 'flex';
+      });
   }
 
-  function closeReportModal() { if (reportModal) reportModal.style.display = 'none'; }
+  function closeReportModal() { 
+    if (reportModal) reportModal.style.display = 'none'; 
+  }
 
   function shareReport() {
     const lines = [
@@ -124,13 +168,9 @@ function initApp() {
     ];
     reportHistory.querySelectorAll('li').forEach(li => lines.push('- ' + li.textContent));
     const text = lines.join('\n');
-    // Copiar para clipboard
     navigator.clipboard.writeText(text).then(() => {
       alert('Relatório copiado para a área de transferência');
-    }).catch(() => {
-      alert('Não foi possível copiar o relatório');
-    });
-    // Abrir WhatsApp (fallback if exists)
+    }).catch(() => {});
     const encoded = encodeURIComponent(text);
     const waUrl = `https://wa.me/?text=${encoded}`;
     window.open(waUrl, '_blank');
@@ -138,6 +178,7 @@ function initApp() {
 
   if (btnOpenReport) btnOpenReport.addEventListener('click', openReportModal);
   if (btnCloseReport) btnCloseReport.addEventListener('click', closeReportModal);
+  if (btnCloseReportAction) btnCloseReportAction.addEventListener('click', closeReportModal);
   if (btnShareReport) btnShareReport.addEventListener('click', shareReport);
 
   const selectFontSize = document.getElementById("select-font-size");
@@ -610,6 +651,104 @@ function initApp() {
     });
   }
 
+  // Botão rápido para Enviar Rotina Completa no WhatsApp
+  if (btnCaregiverShareRoutine) {
+    btnCaregiverShareRoutine.addEventListener("click", () => {
+      const dep = activeProfile.dependenteName || activeProfile.name || "Dona Maria";
+      const today = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+      let msg = `📋 *Rotina do Dia - ${dep}*\n🗓️ ${today}\n\n`;
+
+      const meds = allLoadedItems.filter(i => i.tipo === 'remedio' || i.tipo_notificacao === 'alarme');
+      const tasks = allLoadedItems.filter(i => i.tipo !== 'remedio' && i.tipo_notificacao !== 'alarme');
+
+      msg += `💊 *MEDICAÇÕES:*\n`;
+      if (meds.length === 0) {
+        msg += `• Nenhuma medicação agendada.\n`;
+      } else {
+        meds.forEach(m => {
+          const hora = m.data_hora_alvo ? new Date(m.data_hora_alvo).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Horário livre';
+          const status = m.status === 'concluido' ? '✅ Tomado' : '⏳ Pendente';
+          msg += `• [${hora}] ${m.titulo} (${status})\n`;
+        });
+      }
+
+      msg += `\n📌 *ATIVIDADES E TAREFAS:*\n`;
+      if (tasks.length === 0) {
+        msg += `• Nenhuma atividade agendada.\n`;
+      } else {
+        tasks.forEach(t => {
+          const hora = t.data_hora_alvo ? new Date(t.data_hora_alvo).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Horário livre';
+          const status = t.status === 'concluido' ? '✅ Concluído' : '⏳ Pendente';
+          msg += `• [${hora}] ${t.titulo} (${status})\n`;
+        });
+      }
+
+      msg += `\nEnviado via *Bem Lembrado* 👵✨`;
+      const phone = (activeProfile.cuidadorPhone || appSettings.cuidadorPhone || '').replace(/\D/g, '');
+      const encoded = encodeURIComponent(msg);
+      const zapUrl = phone ? `https://wa.me/55${phone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
+      window.open(zapUrl, "_blank");
+    });
+  }
+
+  // Botão "Ouvir meu dia" (Resumo Diário por Voz)
+  if (btnDailySummary) {
+    btnDailySummary.addEventListener("click", () => {
+      if (!allLoadedItems || allLoadedItems.length === 0) {
+        if (window.soundManager) {
+          window.soundManager.speak("Você não tem nenhum lembrete ou remédio agendado no momento. Seu dia está livre!");
+        }
+        return;
+      }
+
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayPending = allLoadedItems.filter(item => {
+        if (item.status === 'concluido') return false;
+        if (!item.data_hora_alvo) return true;
+        return item.data_hora_alvo.startsWith(todayStr) || new Date(item.data_hora_alvo) <= new Date();
+      });
+
+      if (todayPending.length === 0) {
+        if (window.soundManager) {
+          window.soundManager.speak("Parabéns! Todas as suas atividades e remédios de hoje já foram concluídos.");
+        }
+        return;
+      }
+
+      const meds = todayPending.filter(i => i.tipo === 'remedio' || i.tipo_notificacao === 'alarme');
+      const tasks = todayPending.filter(i => i.tipo !== 'remedio' && i.tipo_notificacao !== 'alarme');
+
+      let speech = "Aqui está o resumo do seu dia. ";
+      if (meds.length > 0) {
+        speech += `Você tem ${meds.length} ${meds.length === 1 ? 'remédio pendente' : 'remédios pendentes'}: `;
+        meds.forEach(m => {
+          let hora = "";
+          if (m.data_hora_alvo) {
+            const d = new Date(m.data_hora_alvo);
+            hora = ` às ${d.getHours()} horas${d.getMinutes() > 0 ? ' e ' + d.getMinutes() + ' minutos' : ''}`;
+          }
+          speech += `${m.titulo}${hora}. `;
+        });
+      }
+      if (tasks.length > 0) {
+        speech += `E você tem ${tasks.length} ${tasks.length === 1 ? 'atividade' : 'atividades'}: `;
+        tasks.forEach(t => {
+          let hora = "";
+          if (t.data_hora_alvo) {
+            const d = new Date(t.data_hora_alvo);
+            hora = ` às ${d.getHours()} horas${d.getMinutes() > 0 ? ' e ' + d.getMinutes() + ' minutos' : ''}`;
+          }
+          speech += `${t.titulo}${hora}. `;
+        });
+      }
+      speech += "Tenha um ótimo dia!";
+
+      if (window.soundManager) {
+        window.soundManager.speak(speech);
+      }
+    });
+  }
+
   // Modal de Escalação de Cuidador
   const escalationModal = document.getElementById("escalation-modal");
   const escalationMedName = document.getElementById("escalation-med-name");
@@ -739,6 +878,23 @@ function initApp() {
   // Sincroniza o soundManager com a preferência salva
   if (window.soundManager) {
     window.soundManager.voiceFeedbackEnabled = appSettings.voiceFeedbackEnabled;
+  }
+
+  // Velocidade da Fala (TTS)
+  const selectVoiceSpeed = document.getElementById("select-voice-speed");
+  const savedVoiceRate = localStorage.getItem("bemlembrado_voice_rate") || "0.95";
+  if (selectVoiceSpeed) {
+    selectVoiceSpeed.value = savedVoiceRate;
+    selectVoiceSpeed.addEventListener("change", (e) => {
+      const rate = parseFloat(e.target.value) || 0.95;
+      localStorage.setItem("bemlembrado_voice_rate", e.target.value);
+      if (window.soundManager) {
+        window.soundManager.speechRate = rate;
+      }
+    });
+  }
+  if (window.soundManager) {
+    window.soundManager.speechRate = parseFloat(savedVoiceRate) || 0.95;
   }
 
   // ========== SISTEMA DE ALARME AUTOMÁTICO ==========
