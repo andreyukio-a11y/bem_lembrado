@@ -6,8 +6,12 @@ from typing import Optional
 import os
 import uvicorn
 
-from database import init_db, list_items, add_item, update_item_status, delete_item, reschedule_item, toggle_pin, batch_delete, get_adherence_report, update_item_notification
-from ai_service import classify_and_extract
+from database import (
+    init_db, list_items, add_item, update_item_status, delete_item,
+    reschedule_item, toggle_pin, batch_delete, get_adherence_report,
+    update_item_notification, register_user, authenticate_user
+)
+from ai_service import classify_and_extract, get_gemini_api_key
 
 # Inicializa o banco de dados
 init_db()
@@ -30,6 +34,51 @@ class VoiceRequest(BaseModel):
 class StatusUpdateRequest(BaseModel):
     status: str
     confirmado_tomado: Optional[bool] = None
+
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+    role: Optional[str] = "simplificado"
+    purpose: Optional[str] = "rotina_e_remedios"
+    phone: Optional[str] = ""
+    dependente_name: Optional[str] = ""
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+@app.get("/api/ai/status")
+def ai_status():
+    key = get_gemini_api_key()
+    return {
+        "gemini_configured": bool(key),
+        "key_prefix": key[:6] + "..." if len(key) > 6 else "",
+        "fallback_mode": "local_rules"
+    }
+
+@app.post("/api/auth/register")
+def auth_register(req: RegisterRequest):
+    try:
+        user = register_user(
+            name=req.name,
+            email=req.email,
+            password=req.password,
+            role=req.role or "simplificado",
+            purpose=req.purpose or "rotina_e_remedios",
+            phone=req.phone or "",
+            dependente_name=req.dependente_name or ""
+        )
+        return {"success": True, "user": user}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/auth/login")
+def auth_login(req: LoginRequest):
+    user = authenticate_user(req.email, req.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="E-mail ou senha incorretos.")
+    return {"success": True, "user": user}
 
 @app.get("/api/items")
 def get_items(usuario_id: Optional[str] = None, dependente_id: Optional[str] = None):

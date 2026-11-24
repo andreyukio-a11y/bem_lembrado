@@ -135,6 +135,23 @@ def init_db():
         conn.commit()
     except Exception:
         pass
+
+    # Tabela de Usuários (Login por e-mail/senha + tipo e finalidade de uso)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'simplificado',
+        purpose TEXT DEFAULT 'rotina_e_remedios',
+        phone TEXT DEFAULT '',
+        dependente_name TEXT DEFAULT '',
+        font_size TEXT DEFAULT 'normal',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+    conn.commit()
     try:
         cursor.execute("ALTER TABLE items ADD COLUMN tipo_notificacao TEXT DEFAULT 'padrao'")
         conn.commit()
@@ -268,7 +285,9 @@ def get_adherence_report(usuario_id=None):
     taxa = round((tomados / total) * 100) if total > 0 else 100
 
     historico = []
+    history = []
     for r in rows:
+        dt_str = (r["data_hora_alvo"] or r["criado_em"] or "")[:16].replace("T", " ")
         historico.append({
             "id": r["id"],
             "titulo": r["titulo"],
@@ -277,12 +296,99 @@ def get_adherence_report(usuario_id=None):
             "data_confirmacao": r["data_hora_confirmacao"],
             "status": r["status"]
         })
+        history.append({
+            "date": f"{dt_str} - {r['titulo']}" if dt_str else r["titulo"],
+            "taken": bool(r["confirmado_tomado"]),
+            "dose_count": 1
+        })
 
     return {
         "total_doses": total,
+        "taken_doses": tomados,
+        "pending_doses": pendentes,
         "doses_tomadas": tomados,
         "doses_pendentes": pendentes,
         "taxa_adesao": taxa,
-        "historico": historico
+        "adherence_rate": round(tomados / total, 4) if total > 0 else 1.0,
+        "historico": historico,
+        "history": history
+    }
+
+# ==========================================================
+# Autenticação de Usuários (E-mail e Senha)
+# ==========================================================
+import hashlib
+import secrets
+
+def _hash_password(password: str, salt: str = None) -> str:
+    if salt is None:
+        salt = secrets.token_hex(16)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100_000)
+    return f"{salt}${dk.hex()}"
+
+def _verify_password(password: str, stored_hash: str) -> bool:
+    try:
+        salt, expected = stored_hash.split("$", 1)
+        return _hash_password(password, salt) == stored_hash
+    except Exception:
+        return False
+
+def register_user(name: str, email: str, password: str, role: str = "simplificado", purpose: str = "rotina_e_remedios", phone: str = "", dependente_name: str = "") -> dict:
+    email_clean = (email or "").strip().lower()
+    if not email_clean or "@" not in email_clean:
+        raise ValueError("E-mail inválido.")
+    if not password or len(password) < 4:
+        raise ValueError("A senha deve ter pelo menos 4 caracteres.")
+    if not name or not name.strip():
+        raise ValueError("O nome é obrigatório.")
+
+    user_id = "usr_" + secrets.token_hex(6)
+    font_size = "grande" if role == "simplificado" else "normal"
+    pw_hash = _hash_password(password)
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            INSERT INTO users (id, name, email, password_hash, role, purpose, phone, dependente_name, font_size)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (user_id, name.strip(), email_clean, pw_hash, role, purpose, phone.strip(), dependente_name.strip(), font_size))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        raise ValueError("Já existe uma conta cadastrada com este e-mail.")
+    conn.close()
+
+    return {
+        "id": user_id,
+        "name": name.strip(),
+        "email": email_clean,
+        "role": role,
+        "purpose": purpose,
+        "phone": phone.strip(),
+        "dependente_name": dependente_name.strip(),
+        "font_size": font_size
+    }
+
+def authenticate_user(email: str, password: str) -> dict:
+    email_clean = (email or "").strip().lower()
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE email = ?", (email_clean,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row or not _verify_password(password or "", row["password_hash"]):
+        return None
+
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "email": row["email"],
+        "role": row["role"],
+        "purpose": row["purpose"],
+        "phone": row["phone"] or "",
+        "dependente_name": row["dependente_name"] or "",
+        "font_size": row["font_size"] or ("grande" if row["role"] == "simplificado" else "normal")
     }
 

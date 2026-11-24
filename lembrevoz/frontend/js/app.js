@@ -578,52 +578,184 @@ function initApp() {
     });
   }
 
-  if (btnSubmitRegister) {
-    btnSubmitRegister.addEventListener("click", () => {
-      const typedName = regUserName ? regUserName.value.trim() : "";
-      const nameVal = typedName || (selectedRegisterRole === "simplificado" ? "Dona Maria" : (selectedRegisterRole === "cuidador" ? "Cuidador" : "Meu Perfil"));
-      const newId = "user_" + Date.now();
-      let icon = "👤";
-      let fontSize = "normal";
+  // Helper para formatar links do WhatsApp com ou sem código 55
+  function formatWhatsAppUrl(rawPhone, text) {
+    const cleanPhone = (rawPhone || "").replace(/\D/g, "");
+    const encoded = encodeURIComponent(text);
+    if (!cleanPhone) return `https://wa.me/?text=${encoded}`;
+    const fullPhone = cleanPhone.startsWith("55") && cleanPhone.length >= 12 ? cleanPhone : `55${cleanPhone}`;
+    return `https://wa.me/${fullPhone}?text=${encoded}`;
+  }
 
-      if (selectedRegisterRole === "simplificado") {
-        icon = "👵";
-        fontSize = "grande";
-      } else if (selectedRegisterRole === "cuidador") {
-        icon = "🩺";
+  // Abas de Autenticação (Criar Conta vs Entrar)
+  const tabAuthRegister = document.getElementById("tab-auth-register");
+  const tabAuthLogin = document.getElementById("tab-auth-login");
+  const authRegisterPanel = document.getElementById("auth-register-panel");
+  const authLoginPanel = document.getElementById("auth-login-panel");
+  const regUserEmail = document.getElementById("reg-user-email");
+  const regUserPassword = document.getElementById("reg-user-password");
+  const regUserPurpose = document.getElementById("reg-user-purpose");
+  const loginEmail = document.getElementById("login-email");
+  const loginPassword = document.getElementById("login-password");
+  const btnSubmitLogin = document.getElementById("btn-submit-login");
+  const btnCancelLogin = document.getElementById("btn-cancel-login");
+  const registerErrorMsg = document.getElementById("register-error-msg");
+  const loginErrorMsg = document.getElementById("login-error-msg");
+
+  if (tabAuthRegister && tabAuthLogin) {
+    tabAuthRegister.addEventListener("click", () => {
+      tabAuthRegister.classList.add("active");
+      tabAuthLogin.classList.remove("active");
+      if (authRegisterPanel) authRegisterPanel.style.display = "block";
+      if (authLoginPanel) authLoginPanel.style.display = "none";
+    });
+    tabAuthLogin.addEventListener("click", () => {
+      tabAuthLogin.classList.add("active");
+      tabAuthRegister.classList.remove("active");
+      if (authLoginPanel) authLoginPanel.style.display = "block";
+      if (authRegisterPanel) authRegisterPanel.style.display = "none";
+      if (btnCancelLogin && btnCancelRegister) {
+        btnCancelLogin.style.display = btnCancelRegister.style.display;
+      }
+    });
+  }
+
+  if (btnCancelLogin) {
+    btnCancelLogin.addEventListener("click", () => {
+      if (onboardingOverlay) onboardingOverlay.style.display = "none";
+    });
+  }
+
+  function activateUserProfileFromAuth(userObj) {
+    let icon = "👤";
+    if (userObj.role === "simplificado") icon = "👵";
+    else if (userObj.role === "cuidador") icon = "🩺";
+
+    const fontSize = userObj.font_size || (userObj.role === "simplificado" ? "grande" : "normal");
+    const newProfile = {
+      id: userObj.id,
+      name: userObj.name,
+      email: userObj.email || "",
+      role: userObj.role || "simplificado",
+      purpose: userObj.purpose || "rotina_e_remedios",
+      icon: icon,
+      fontSize: fontSize,
+      dependenteName: userObj.dependente_name || "",
+      cuidadorPhone: userObj.phone || ""
+    };
+
+    const existingIdx = profilesList.findIndex(p => p.id === newProfile.id || (newProfile.email && p.email === newProfile.email));
+    if (existingIdx >= 0) {
+      profilesList[existingIdx] = newProfile;
+    } else {
+      profilesList.push(newProfile);
+    }
+    saveStoredProfiles(profilesList);
+    activeProfile = newProfile;
+    activeProfileId = newProfile.id;
+    localStorage.setItem("bemlembrado_active_id_v3", newProfile.id);
+    localStorage.setItem("bemlembrado_onboarded_v3", "true");
+
+    if (newProfile.cuidadorPhone) {
+      appSettings.cuidadorPhone = newProfile.cuidadorPhone;
+      localStorage.setItem("bemlembrado_cuidador_phone", newProfile.cuidadorPhone);
+    }
+    appSettings.fontSize = fontSize;
+    localStorage.setItem("bemlembrado_fontsize", fontSize);
+
+    if (onboardingOverlay) onboardingOverlay.style.display = "none";
+    applySettings();
+    renderProfilesModalList();
+    loadItems();
+  }
+
+  if (btnSubmitLogin) {
+    btnSubmitLogin.addEventListener("click", async () => {
+      if (loginErrorMsg) loginErrorMsg.style.display = "none";
+      const email = loginEmail ? loginEmail.value.trim() : "";
+      const password = loginPassword ? loginPassword.value : "";
+
+      if (!email || !password) {
+        if (loginErrorMsg) {
+          loginErrorMsg.textContent = "Preencha seu e-mail e senha para entrar.";
+          loginErrorMsg.style.display = "block";
+        }
+        return;
       }
 
+      btnSubmitLogin.disabled = true;
+      btnSubmitLogin.textContent = "Entrando...";
+      try {
+        const resp = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data.detail || "E-mail ou senha incorretos.");
+        }
+        activateUserProfileFromAuth(data.user);
+      } catch (err) {
+        if (loginErrorMsg) {
+          loginErrorMsg.textContent = err.message;
+          loginErrorMsg.style.display = "block";
+        }
+      } finally {
+        btnSubmitLogin.disabled = false;
+        btnSubmitLogin.textContent = "🔓 Entrar";
+      }
+    });
+  }
+
+  if (btnSubmitRegister) {
+    btnSubmitRegister.addEventListener("click", async () => {
+      if (registerErrorMsg) registerErrorMsg.style.display = "none";
+      const typedName = regUserName ? regUserName.value.trim() : "";
+      const emailVal = regUserEmail ? regUserEmail.value.trim() : "";
+      const passVal = regUserPassword ? regUserPassword.value : "";
+      const purposeVal = regUserPurpose ? regUserPurpose.value : "rotina_e_remedios";
       const depName = regDependentName ? regDependentName.value.trim() : "";
       const zapPhone = regCaregiverPhone ? regCaregiverPhone.value.trim() : "";
 
-      const newProfile = {
-        id: newId,
-        name: nameVal,
-        role: selectedRegisterRole,
-        icon: icon,
-        fontSize: fontSize,
-        dependenteName: depName,
-        cuidadorPhone: zapPhone
-      };
-
-      profilesList.push(newProfile);
-      saveStoredProfiles(profilesList);
-      activeProfile = newProfile;
-      activeProfileId = newProfile.id;
-      localStorage.setItem("bemlembrado_active_id_v3", newProfile.id);
-      localStorage.setItem("bemlembrado_onboarded_v3", "true");
-
-      if (zapPhone) {
-        appSettings.cuidadorPhone = zapPhone;
-        localStorage.setItem("bemlembrado_cuidador_phone", zapPhone);
+      if (!typedName || !emailVal || !passVal) {
+        if (registerErrorMsg) {
+          registerErrorMsg.textContent = "Preencha nome, e-mail e senha (mínimo 4 caracteres).";
+          registerErrorMsg.style.display = "block";
+        }
+        return;
       }
-      appSettings.fontSize = fontSize;
-      localStorage.setItem("bemlembrado_fontsize", fontSize);
 
-      if (onboardingOverlay) onboardingOverlay.style.display = "none";
-      applySettings();
-      renderProfilesModalList();
-      loadItems();
+      btnSubmitRegister.disabled = true;
+      btnSubmitRegister.textContent = "Criando conta...";
+      try {
+        const resp = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: typedName,
+            email: emailVal,
+            password: passVal,
+            role: selectedRegisterRole,
+            purpose: purposeVal,
+            phone: zapPhone,
+            dependente_name: depName
+          })
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data.detail || "Erro ao criar conta.");
+        }
+        activateUserProfileFromAuth(data.user);
+      } catch (err) {
+        if (registerErrorMsg) {
+          registerErrorMsg.textContent = err.message;
+          registerErrorMsg.style.display = "block";
+        }
+      } finally {
+        btnSubmitRegister.disabled = false;
+        btnSubmitRegister.textContent = "🚀 Criar Conta e Começar";
+      }
     });
   }
 
@@ -643,10 +775,9 @@ function initApp() {
   // Botão rápido de WhatsApp no Banner do Cuidador
   if (btnCaregiverQuickMsg) {
     btnCaregiverQuickMsg.addEventListener("click", () => {
-      const phone = (activeProfile.cuidadorPhone || appSettings.cuidadorPhone || '').replace(/\D/g, '');
+      const phone = activeProfile.cuidadorPhone || appSettings.cuidadorPhone || "";
       const dep = activeProfile.dependenteName || "seu familiar";
-      const text = encodeURIComponent(`Olá! Como estão as atividades e medicações de ${dep} hoje?`);
-      const zapUrl = phone ? `https://wa.me/55${phone}?text=${text}` : `https://wa.me/?text=${text}`;
+      const zapUrl = formatWhatsAppUrl(phone, `Olá! Como estão as atividades e medicações de ${dep} hoje?`);
       window.open(zapUrl, "_blank");
     });
   }
@@ -658,8 +789,8 @@ function initApp() {
       const today = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
       let msg = `📋 *Rotina do Dia - ${dep}*\n🗓️ ${today}\n\n`;
 
-      const meds = allLoadedItems.filter(i => i.tipo === 'remedio' || i.tipo_notificacao === 'alarme');
-      const tasks = allLoadedItems.filter(i => i.tipo !== 'remedio' && i.tipo_notificacao !== 'alarme');
+      const meds = allLoadedItems.filter(i => i.categoria === 'medicacao' || i.tipo_notificacao === 'alarme');
+      const tasks = allLoadedItems.filter(i => i.categoria !== 'medicacao' && i.tipo_notificacao !== 'alarme');
 
       msg += `💊 *MEDICAÇÕES:*\n`;
       if (meds.length === 0) {
@@ -667,7 +798,7 @@ function initApp() {
       } else {
         meds.forEach(m => {
           const hora = m.data_hora_alvo ? new Date(m.data_hora_alvo).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Horário livre';
-          const status = m.status === 'concluido' ? '✅ Tomado' : '⏳ Pendente';
+          const status = (m.status === 'concluido' || m.confirmado_tomado) ? '✅ Tomado' : '⏳ Pendente';
           msg += `• [${hora}] ${m.titulo} (${status})\n`;
         });
       }
@@ -684,9 +815,8 @@ function initApp() {
       }
 
       msg += `\nEnviado via *Bem Lembrado* 👵✨`;
-      const phone = (activeProfile.cuidadorPhone || appSettings.cuidadorPhone || '').replace(/\D/g, '');
-      const encoded = encodeURIComponent(msg);
-      const zapUrl = phone ? `https://wa.me/55${phone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
+      const phone = activeProfile.cuidadorPhone || appSettings.cuidadorPhone || "";
+      const zapUrl = formatWhatsAppUrl(phone, msg);
       window.open(zapUrl, "_blank");
     });
   }
@@ -897,82 +1027,100 @@ function initApp() {
     window.soundManager.speechRate = parseFloat(savedVoiceRate) || 0.95;
   }
 
-  // ========== SISTEMA DE ALARME AUTOMÁTICO ==========
+  // ========== SISTEMA DE ALARME E NOTIFICAÇÃO AUTOMÁTICA ==========
   const alarmHandles = {};  // { itemId: { timeoutId, intervalId, attempts } }
+  const firedNotifications = new Set();
   const ALARM_REPEAT_MS = 2 * 60 * 1000;  // 2 minutos
   const ALARM_MAX_ATTEMPTS = 5;
 
+  function triggerNotificationForItem(item) {
+    const fireKey = `${item.id}_${item.data_hora_alvo}`;
+    if (firedNotifications.has(fireKey)) return;
+    firedNotifications.add(fireKey);
+
+    if (window.soundManager) {
+      window.soundManager.playPleasantChime();
+      window.soundManager.notify(
+        `Lembrete: ${item.titulo}`,
+        "Está na hora da sua atividade agendada."
+      );
+      if (window.soundManager.voiceFeedbackEnabled) {
+        setTimeout(() => {
+          window.soundManager.speak(`Lembrete: ${item.titulo}.`);
+        }, 500);
+      }
+    }
+  }
+
   function scheduleAlarm(item) {
     if (!item || !item.data_hora_alvo || item.status === "concluido" || item.confirmado_tomado) return;
-    
+    if (item.tipo_notificacao === "silencioso") return;
+
     const targetTime = new Date(item.data_hora_alvo).getTime();
+    if (isNaN(targetTime)) return;
     const now = Date.now();
     let delay = targetTime - now;
 
-    // Se o modo for apenas Notificação do Navegador
-    if (item.tipo_notificacao === "notificacao") {
-      if (delay > 0 && delay < 24 * 60 * 60 * 1000) {
-        setTimeout(() => {
-          if (window.soundManager) {
-            window.soundManager.notify(`Lembrete: ${item.titulo}`, "Está na hora da sua atividade agendada.");
-          }
-        }, delay);
-      }
-      return;
-    }
+    // Se já passou há mais de 30 minutos, não dispara alarme antigo ao abrir o app
+    if (delay < -30 * 60 * 1000) return;
+    if (delay < 0) delay = 0;
+    // Evita overflow de setTimeout (> 24h)
+    if (delay > 24 * 60 * 60 * 1000) return;
 
-    // Se o modo for Silencioso (Apenas Tela), não agenda alarme sonoro
-    if (item.tipo_notificacao === "silencioso") return;
-
-    // Padrão de alarme sonoro contínuo (Medicação ou tarefas com Alarme)
-    const isAlarmMode = item.categoria === "medicacao" || item.tipo_notificacao === "alarme";
-    if (!isAlarmMode) return;
-    
     const itemId = item.id;
     stopAlarm(itemId);
 
-    if (delay < 0) delay = 0;
-    if (delay === 0 && (now - targetTime) > 30 * 60 * 1000) return;
+    const isAlarmMode = item.categoria === "medicacao" || item.tipo_notificacao === "alarme";
 
+    // Modo Notificação Simples (compromissos e tarefas com aviso)
+    if (!isAlarmMode) {
+      const fireKey = `${item.id}_${item.data_hora_alvo}`;
+      if (firedNotifications.has(fireKey)) return;
+      const handle = { timeoutId: null, intervalId: null, attempts: 0 };
+      handle.timeoutId = setTimeout(() => {
+        triggerNotificationForItem(item);
+      }, delay);
+      alarmHandles[itemId] = handle;
+      return;
+    }
+
+    // Modo Alarme Contínuo (Medicações e itens urgentes)
     const handle = { timeoutId: null, intervalId: null, attempts: 0 };
-    
     handle.timeoutId = setTimeout(() => {
       triggerAlarmForItem(item, handle);
-      
+
       handle.intervalId = setInterval(() => {
         handle.attempts++;
         if (handle.attempts >= ALARM_MAX_ATTEMPTS) {
           stopAlarm(itemId);
           if (window.soundManager) {
-            window.soundManager.notify("Lembrete não confirmado", 
-              `Você não confirmou: ${item.titulo}.`);
+            window.soundManager.notify("Lembrete não confirmado", `Você não confirmou: ${item.titulo}.`);
           }
-          // Escalação de Cuidador / Pessoa de Confiança
           openEscalationModal(item);
           return;
         }
         triggerAlarmForItem(item, handle);
       }, ALARM_REPEAT_MS);
     }, delay);
-    
+
     alarmHandles[itemId] = handle;
   }
 
   function triggerAlarmForItem(item, handle) {
-    // Toca o alarme sonoro
+    const fireKey = `${item.id}_${item.data_hora_alvo}`;
+    firedNotifications.add(fireKey);
     if (window.soundManager) {
       window.soundManager.playPleasantChime();
-      // Notificação do navegador
-      window.soundManager.notify("Hora do Medicamento", 
-        `Você precisa tomar: ${item.titulo}`);
-      // Fala por voz (se habilitado)
+      window.soundManager.notify("Hora do Lembrete", `Você precisa confirmar: ${item.titulo}`);
       setTimeout(() => {
         if (window.soundManager && window.soundManager.voiceFeedbackEnabled) {
-          window.soundManager.speak(`Hora do seu medicamento: ${item.titulo}. Você já tomou?`);
+          const msg = item.categoria === "medicacao"
+            ? `Hora do seu medicamento: ${item.titulo}. Você já tomou?`
+            : `Atenção ao seu compromisso: ${item.titulo}.`;
+          window.soundManager.speak(msg);
         }
       }, 600);
     }
-    // Abre o modal de confirmação
     openCheckCycleModal(item.id, item.titulo);
   }
 
@@ -986,12 +1134,47 @@ function initApp() {
   }
 
   function scheduleAllAlarms(items) {
-    // Limpa todos os alarmes existentes
     Object.keys(alarmHandles).forEach(id => stopAlarm(id));
-    // Agenda alarmes para itens de medicação pendentes
     items.forEach(item => {
-      if (item.categoria === "medicacao" && item.status !== "concluido" && !item.confirmado_tomado) {
+      if (item.status !== "concluido" && !item.confirmado_tomado && item.data_hora_alvo) {
         scheduleAlarm(item);
+      }
+    });
+  }
+
+  // Watchdog a cada 15s para garantir disparo mesmo se o navegador pausar timers em segundo plano
+  setInterval(() => {
+    if (!allLoadedItems || allLoadedItems.length === 0) return;
+    const now = Date.now();
+    allLoadedItems.forEach(item => {
+      if (item.status === "concluido" || item.confirmado_tomado || !item.data_hora_alvo) return;
+      if (item.tipo_notificacao === "silencioso") return;
+      const targetTime = new Date(item.data_hora_alvo).getTime();
+      if (isNaN(targetTime)) return;
+      const diff = now - targetTime;
+      if (diff >= 0 && diff <= 10 * 60 * 1000) {
+        const fireKey = `${item.id}_${item.data_hora_alvo}`;
+        if (!firedNotifications.has(fireKey)) {
+          const isAlarmMode = item.categoria === "medicacao" || item.tipo_notificacao === "alarme";
+          if (isAlarmMode) {
+            triggerAlarmForItem(item, alarmHandles[item.id] || {});
+          } else {
+            triggerNotificationForItem(item);
+          }
+        }
+      }
+    });
+  }, 15000);
+
+  // Botão de Teste de Notificação e Alarme nas Configurações
+  const optSettingsTestNotif = document.getElementById("opt-settings-test-notif");
+  if (optSettingsTestNotif) {
+    optSettingsTestNotif.addEventListener("click", async () => {
+      if (window.soundManager) {
+        await window.soundManager.requestNotificationPermission();
+        window.soundManager.playPleasantChime();
+        window.soundManager.notify("Bem Lembrado - Teste 🔔", "As notificações e alarmes estão funcionando perfeitamente!");
+        window.soundManager.speak("Notificações e alarmes ativados com sucesso!");
       }
     });
   }

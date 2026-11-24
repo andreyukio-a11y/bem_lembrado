@@ -2,16 +2,40 @@ import os
 import re
 import json
 import unicodedata
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
-# Tenta carregar .env se python-dotenv estiver instalado
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
+def _load_local_env():
+    """Carrega variáveis de arquivos .env locais caso python-dotenv não esteja instalado."""
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+        load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+    except ImportError:
+        pass
+    for env_path in [
+        os.path.join(os.path.dirname(__file__), ".env"),
+        os.path.join(os.path.dirname(__file__), "..", ".env"),
+    ]:
+        if os.path.isfile(env_path):
+            try:
+                with open(env_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            k, v = line.split("=", 1)
+                            k = k.strip()
+                            v = v.strip().strip('"').strip("'")
+                            if k and not os.environ.get(k):
+                                os.environ[k] = v
+            except Exception:
+                pass
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+_load_local_env()
+
+def get_gemini_api_key() -> str:
+    return os.getenv("GEMINI_API_KEY", "").strip()
+
+GEMINI_API_KEY = get_gemini_api_key()
 
 def norm(text: str) -> str:
     """Remove acentos e converte para minúsculas para comparações infalíveis."""
@@ -53,15 +77,19 @@ def classify_and_extract(transcription: str, current_time: datetime = None) -> d
     Suporta 1 ou múltiplas intenções/atividades em uma única fala.
     """
     if current_time is None:
-        current_time = datetime.now()
+        # Usa horário de Brasília (UTC-3) como padrão para consistência no Render (UTC)
+        brt = timezone(timedelta(hours=-3))
+        current_time = datetime.now(brt).replace(tzinfo=None)
 
     cleaned_transcription = clean_repetitive_text(transcription)
 
     # 1. Se houver chave do Gemini configurada, usamos a IA do Gemini
-    if GEMINI_API_KEY:
+    api_key = get_gemini_api_key() or GEMINI_API_KEY
+    if api_key:
         try:
-            result = _call_gemini_api(cleaned_transcription, current_time)
+            result = _call_gemini_api(cleaned_transcription, current_time, api_key=api_key)
             result["transcricao_limpa"] = cleaned_transcription
+            result["ai_provider"] = result.get("ai_provider", "gemini")
             # Garante formato com 'itens'
             if "itens" not in result or not result["itens"]:
                 result["itens"] = [{
@@ -85,14 +113,17 @@ def classify_and_extract(transcription: str, current_time: datetime = None) -> d
     result["transcricao_limpa"] = cleaned_transcription
     return result
 
-def _call_gemini_api(transcription: str, current_time: datetime) -> dict:
-    """Chama a API do Google Gemini usando urllib com fallback de modelos."""
+def _call_gemini_api(transcription: str, current_time: datetime, api_key: str = None) -> dict:
+    """Chama a API do Google Gemini usando urllib com fallback de modelos ativos."""
     import urllib.request
 
+    active_key = api_key or get_gemini_api_key() or GEMINI_API_KEY
     models_to_try = [
-        "gemini-1.5-flash",
-        "gemini-2.0-flash",
-        "gemini-2.5-flash"
+        "gemini-3-flash-preview",
+        "gemini-3.5-flash",
+        "gemini-3.8-flash",
+        "gemini-flash-latest",
+        "gemma-4-26b-a4b-it"
     ]
     
     prompt = f"""
@@ -130,25 +161,32 @@ Responda APENAS com um objeto JSON válido:
   ]
 }}
 """
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.1, "responseMimeType": "application/json"}
-    }
-    req_data = json.dumps(payload).encode('utf-8')
-
     last_error = None
     for model_name in models_to_try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+        gen_config = {"temperature": 0.1}
+        if model_name.startswith("gemini"):
+            gen_config["responseMimeType"] = "application/json"
+
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": gen_config
+        }
+        req_data = json.dumps(payload).encode('utf-8')
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={active_key}"
         req = urllib.request.Request(url, data=req_data, headers={"Content-Type": "application/json"})
         try:
-            with urllib.request.urlopen(req, timeout=6) as response:
+            with urllib.request.urlopen(req, timeout=10) as response:
                 if response.status == 200:
                     res_body = response.read().decode('utf-8')
                     data = json.loads(res_body)
-                    raw_text = data['candidates'][0]['content']['parts'][0]['text']
+                    raw_text = data['candidates'][0]['content']['parts'][0]['text'].strip()
+                    # Remove eventuais cercas markdown ```json ... ```
+                    raw_text = re.sub(r'^```(?:json)?\s*', '', raw_text, flags=re.IGNORECASE)
+                    raw_text = re.sub(r'\s*```$', '', raw_text)
                     parsed = json.loads(raw_text)
                     if isinstance(parsed, list):
-                        return {"itens": parsed}
+                        return {"itens": parsed, "ai_provider": model_name}
+                    parsed["ai_provider"] = model_name
                     return parsed
         except Exception as e:
             last_error = e
@@ -176,7 +214,7 @@ def split_multiple_intents(text: str) -> list:
 
     # 3. Quebras por novas orações de ação com conjunção 'e' ou 'aí'
     s = re.sub(
-        r'\s*(?:,\s*|\s+e\s+|\s+a[ií]\s+)(?=(?:eu\s+)?(?:tenho\s+(?:que|de|um|uma)?|preciso\s+(?:de)?|vou\s+|quero\s+|lembrar\s+(?:de)?|n[aã]o\s+esquecer\s+(?:de)?|tomar\s+|beber\s+|pingar\s+|aplicar\s+|fazer\s+|limpar\s+|lavar\s+|comprar\s+|pagar\s+|ligar\s+|ir\s+(?:ao?|para)?|consulta\s+|reuni[aã]o\s+|aula\s+|treino\s+|dentista\s+|m[eé]dico\s+|(?:o\s+|a\s+|um\s+|uma\s+)?(?:rem[eé]dio|medicamento|comprimido|gotas?|dose)\b))\b',
+        r'\s*(?:,\s*|\s+e\s+|\s+a[ií]\s+)(?=(?:eu\s+)?(?:tenho\s+(?:que|de|um|uma)?|preciso\s+(?:de)?|vou\s+|quero\s+|lembrar\s+(?:de)?|n[aã]o\s+esquecer\s+(?:de)?|tomar\s+|beber\s+|pingar\s+|aplicar\s+|passar\s+|almo[cç]ar\s*|jantar\s*|fazer\s+|limpar\s+|lavar\s+|comprar\s+|pagar\s+|ligar\s+|buscar\s+|levar\s+|visitar\s+|caminhar\s+|estudar\s+|trabalhar\s+|dar\s+|ir\s+(?:ao?|para)?|consulta\s+|reuni[aã]o\s+|aula\s+|treino\s+|dentista\s+|m[eé]dico\s+|(?:o\s+|a\s+|um\s+|uma\s+)?(?:rem[eé]dio|medicamento|comprimido|gotas?|dose)\b))\b',
         ' ||| ',
         s,
         flags=re.IGNORECASE

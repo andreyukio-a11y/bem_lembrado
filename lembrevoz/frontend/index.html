@@ -6,7 +6,7 @@
   <title>Bem Lembrado - Organização por Voz</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="stylesheet" href="css/style.css?v=20261118_01">
+  <link rel="stylesheet" href="css/style.css?v=20261124_01">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0066ff">
 </head>
@@ -224,6 +224,13 @@
         <!-- Grupo: Recursos e Apresentação -->
         <div class="settings-group">
           <div class="settings-group-title">Recursos do Aplicativo</div>
+          <div class="settings-option" id="opt-settings-test-notif" style="cursor: pointer;">
+            <div class="settings-option-text">
+              <h4>Testar Alarme e Notificação</h4>
+              <p>Ativa permissões e testa som, voz e aviso na tela</p>
+            </div>
+            <span class="settings-icon-preview">🔔</span>
+          </div>
           <div class="settings-option" id="opt-settings-report" style="cursor: pointer;">
             <div class="settings-option-text">
               <h4>Relatório de Adesão à Medicação</h4>
@@ -455,18 +462,63 @@
           </div>
         </div>
 
-        <!-- Etapa 2: Cadastro do Perfil -->
+        <!-- Etapa 2: Acesso / Cadastro com E-mail e Senha -->
         <div id="onboarding-step-register" class="onboarding-step" style="display: none;">
-          <h2 id="register-title">Criar Novo Perfil</h2>
-          <p class="slide-subtitle">Sem senhas ou burocracia. Escolha como vai usar o aplicativo:</p>
+          <h2 id="register-title">Acesse sua Conta</h2>
+          <p class="slide-subtitle">Crie seu perfil personalizado ou entre com seu e-mail e senha:</p>
 
-          <div class="register-form">
+          <!-- Abas: Criar Conta vs Entrar -->
+          <div class="auth-tabs">
+            <button type="button" id="tab-auth-register" class="auth-tab-btn active">Criar Conta</button>
+            <button type="button" id="tab-auth-login" class="auth-tab-btn">Já tenho conta</button>
+          </div>
+
+          <!-- Formulário de Login -->
+          <div id="auth-login-panel" class="register-form" style="display: none;">
             <div class="form-group">
-              <label for="reg-user-name">Como você quer ser chamado(a)?</label>
-              <input type="text" id="reg-user-name" placeholder="Ex: Dona Maria, Carlos, Pedro..." autocomplete="off">
+              <label for="login-email">E-mail</label>
+              <input type="email" id="login-email" placeholder="seuemail@exemplo.com" autocomplete="email">
+            </div>
+            <div class="form-group">
+              <label for="login-password">Senha</label>
+              <input type="password" id="login-password" placeholder="Sua senha" autocomplete="current-password">
+            </div>
+            <p id="login-error-msg" class="auth-error-msg" style="display: none;"></p>
+            <div class="register-actions">
+              <button id="btn-cancel-login" class="btn-cancel-reg" style="display: none;">Cancelar</button>
+              <button id="btn-submit-login" class="btn-submit-reg">🔓 Entrar</button>
+            </div>
+          </div>
+
+          <!-- Formulário de Cadastro -->
+          <div id="auth-register-panel" class="register-form">
+            <div class="form-group">
+              <label for="reg-user-name">Nome completo ou apelido:</label>
+              <input type="text" id="reg-user-name" placeholder="Ex: Dona Maria, Carlos, Pedro..." autocomplete="name">
             </div>
 
-            <label class="form-label-section">Escolha o Tipo de Perfil:</label>
+            <div class="form-row-2">
+              <div class="form-group">
+                <label for="reg-user-email">E-mail:</label>
+                <input type="email" id="reg-user-email" placeholder="seuemail@exemplo.com" autocomplete="email">
+              </div>
+              <div class="form-group">
+                <label for="reg-user-password">Senha:</label>
+                <input type="password" id="reg-user-password" placeholder="Mín. 4 caracteres" autocomplete="new-password">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="reg-user-purpose">Principal finalidade de uso:</label>
+              <select id="reg-user-purpose" class="auth-select">
+                <option value="rotina_e_remedios">💊 Controlar remédios e rotina diária</option>
+                <option value="cuidar_familiar">🩺 Acompanhar e cuidar de um familiar</option>
+                <option value="organizacao_pessoal">📅 Organizar compromissos e tarefas pessoais</option>
+                <option value="acessibilidade_voz">🗣️ Facilitar o dia a dia usando apenas a voz</option>
+              </select>
+            </div>
+
+            <label class="form-label-section">Escolha o Tipo de Usuário:</label>
             <div class="role-selection-grid">
               <!-- Opção 1: Idoso / Simplificado -->
               <div class="role-choice-card selected" data-role="simplificado">
@@ -508,9 +560,11 @@
               </div>
             </div>
 
+            <p id="register-error-msg" class="auth-error-msg" style="display: none;"></p>
+
             <div class="register-actions">
               <button id="btn-cancel-register" class="btn-cancel-reg" style="display: none;">Cancelar</button>
-              <button id="btn-submit-register" class="btn-submit-reg">🚀 Salvar e Começar</button>
+              <button id="btn-submit-register" class="btn-submit-reg">🚀 Criar Conta e Começar</button>
             </div>
           </div>
         </div>
@@ -519,8 +573,8 @@
     </div>
 
     <!-- Scripts da Aplicação -->
-    <script src="js/notifications.js?v=20261118_01"></script>
-    <script src="js/voice.js?v=20261118_01"></script>
-    <script src="js/app.js?v=20261118_01"></script>
+    <script src="js/notifications.js?v=20261124_01"></script>
+    <script src="js/voice.js?v=20261124_01"></script>
+    <script src="js/app.js?v=20261124_01"></script>
   </body>
 </html>
