@@ -973,7 +973,7 @@ function initApp() {
         inputCuidadorDependente.value = activeProfile.dependenteName || localStorage.getItem("bemlembrado_dependente_name") || "Dona Maria";
       }
       if (inputCuidadorPhone) {
-        inputCuidadorPhone.value = trustedPhone || localStorage.getItem("bemlembrado_cuidador_phone") || "";
+        inputCuidadorPhone.value = activeProfile.cuidadorPhone || appSettings.cuidadorPhone || localStorage.getItem("bemlembrado_cuidador_phone") || "";
       }
 
       settingsModal.style.display = "flex";
@@ -996,11 +996,13 @@ function initApp() {
         localStorage.setItem("bemlembrado_dependente_name", depName);
       }
       if (phone) {
-        trustedPhone = phone;
+        activeProfile.cuidadorPhone = phone;
+        appSettings.cuidadorPhone = phone;
         localStorage.setItem("bemlembrado_cuidador_phone", phone);
       }
-      switchProfile(activeProfile.id);
-      alert("Vínculo com a pessoa idosa e WhatsApp de alertas salvos com sucesso!");
+      saveStoredProfiles(profilesList);
+      switchActiveProfile(activeProfile.id);
+      alert("Vínculo e contato de alerta salvos com sucesso!");
     });
   }
 
