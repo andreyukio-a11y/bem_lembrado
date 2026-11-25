@@ -6,7 +6,7 @@
   <title>Bem Lembrado - Organização por Voz</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="stylesheet" href="css/style.css?v=20261125_01">
+  <link rel="stylesheet" href="css/style.css?v=20261125_02">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0066ff">
 </head>
@@ -402,21 +402,27 @@
         <p id="notif-modal-item-title" style="font-weight: 600; margin-bottom: 14px;"></p>
         <div class="notif-options-list">
           <button class="btn-notif-choice" data-type="silencioso">
-            <span class="notif-choice-icon">👁️</span>
+            <span class="notif-choice-icon">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+            </span>
             <div>
               <strong>Apenas na Tela (Silencioso)</strong>
               <small>Aparece na lista do app sem emitir som ou notificação externa</small>
             </div>
           </button>
           <button class="btn-notif-choice" data-type="notificacao">
-            <span class="notif-choice-icon">🔔</span>
+            <span class="notif-choice-icon">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+            </span>
             <div>
               <strong>Notificação (Aviso Próximo)</strong>
-              <small>Receba uma notificação do navegador no horário ou próximo dele</small>
+              <small>Receba uma notificação do dispositivo no horário ou próximo dele</small>
             </div>
           </button>
           <button class="btn-notif-choice" data-type="alarme">
-            <span class="notif-choice-icon">🚨</span>
+            <span class="notif-choice-icon">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M22 5.72l-4.6-3.86-1.29 1.53 4.6 3.86L22 5.72zM7.88 3.39L6.6 1.86 2 5.71l1.29 1.53 4.59-3.85zM12.5 8H11v6l4.75 2.85.75-1.23-4-2.37V8zM12 4c-4.97 0-9 4.03-9 9 0 4.97 4.02 9 9 9s9-4.03 9-9c0-4.97-4.03-9-9-9zm0 16c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+            </span>
             <div>
               <strong>Alarme Sonoro Contínuo (Urgente)</strong>
               <small>Toca sino suave contínuo, vibra e fala por voz até confirmação</small>
@@ -435,28 +441,36 @@
           <div class="carousel-container">
             <!-- Slide 0 -->
             <div class="carousel-slide active" data-slide="0">
-              <div class="slide-icon">🎙️✨</div>
+              <div class="slide-icon">
+                <svg viewBox="0 0 24 24" width="44" height="44" fill="var(--primary)"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+              </div>
               <h2>Bem-vindo ao Bem Lembrado!</h2>
               <p class="slide-subtitle">Organização natural por voz feita para todos.</p>
               <p class="slide-desc">Diga adeus a telas cheias de opções e botões difíceis. Com apenas um toque no microfone, fale no seu ritmo do jeito que você pensa.</p>
             </div>
             <!-- Slide 1 -->
             <div class="carousel-slide" data-slide="1">
-              <div class="slide-icon">🧠📋</div>
+              <div class="slide-icon">
+                <svg viewBox="0 0 24 24" width="44" height="44" fill="var(--primary)"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+              </div>
               <h2>Fale Tudo em um Só Áudio</h2>
               <p class="slide-subtitle">Inteligência que separa cada demanda.</p>
               <p class="slide-desc">Pode falar seu dia corrido: reuniões com início e fim (<em>"das 14h às 16h"</em>), remédios e tarefas. O aplicativo separa tudo automaticamente em blocos!</p>
             </div>
             <!-- Slide 2 -->
             <div class="carousel-slide" data-slide="2">
-              <div class="slide-icon">💊⏰</div>
+              <div class="slide-icon">
+                <svg viewBox="0 0 24 24" width="44" height="44" fill="var(--primary)"><path d="M4.22 11.29l6.36-6.36a5 5 0 017.07 7.07l-6.36 6.36a5 5 0 01-7.07-7.07zm1.42 1.42a3 3 0 004.24 4.24l2.12-2.12-4.24-4.24-2.12 2.12z"/></svg>
+              </div>
               <h2>Cuidado Especial com Remédios</h2>
               <p class="slide-subtitle">Avisos suaves e checagem de segurança.</p>
               <p class="slide-desc">Remédios tocam sons suaves e verificam minutos depois se você já tomou. Nada de alarmes estridentes que causam susto ou ansiedade.</p>
             </div>
             <!-- Slide 3 -->
             <div class="carousel-slide" data-slide="3">
-              <div class="slide-icon">🤝📱</div>
+              <div class="slide-icon">
+                <svg viewBox="0 0 24 24" width="44" height="44" fill="var(--primary)"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              </div>
               <h2>Tranquilidade para Quem Cuida</h2>
               <p class="slide-subtitle">Conexão cuidador e dependente.</p>
               <p class="slide-desc">Se uma medicação importante não for confirmada após as tentativas, o responsável de confiança pode ser avisado no WhatsApp para checar o familiar.</p>
@@ -502,7 +516,7 @@
             <p id="login-error-msg" class="auth-error-msg" style="display: none;"></p>
             <div class="register-actions">
               <button id="btn-cancel-login" class="btn-cancel-reg" style="display: none;">Cancelar</button>
-              <button id="btn-submit-login" class="btn-submit-reg">🔓 Entrar</button>
+              <button id="btn-submit-login" class="btn-submit-reg">Entrar</button>
             </div>
           </div>
 
@@ -527,10 +541,10 @@
             <div class="form-group">
               <label for="reg-user-purpose">Principal finalidade de uso:</label>
               <select id="reg-user-purpose" class="auth-select">
-                <option value="rotina_e_remedios">💊 Controlar remédios e rotina diária</option>
-                <option value="cuidar_familiar">🩺 Acompanhar e cuidar de um familiar</option>
-                <option value="organizacao_pessoal">📅 Organizar compromissos e tarefas pessoais</option>
-                <option value="acessibilidade_voz">🗣️ Facilitar o dia a dia usando apenas a voz</option>
+                <option value="rotina_e_remedios">Controlar remédios e rotina diária</option>
+                <option value="cuidar_familiar">Acompanhar e cuidar de um familiar</option>
+                <option value="organizacao_pessoal">Organizar compromissos e tarefas pessoais</option>
+                <option value="acessibilidade_voz">Facilitar o dia a dia usando apenas a voz</option>
               </select>
             </div>
 
@@ -538,7 +552,9 @@
             <div class="role-selection-grid">
               <!-- Opção 1: Idoso / Simplificado -->
               <div class="role-choice-card selected" data-role="simplificado">
-                <span class="role-icon">👵</span>
+                <span class="role-icon">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                </span>
                 <div class="role-info">
                   <strong>Modo Simplificado / Idoso</strong>
                   <p>Botões grandes, microfone em destaque, avisos de remédio e som suave.</p>
@@ -547,7 +563,9 @@
 
               <!-- Opção 2: Cuidador / Responsável -->
               <div class="role-choice-card" data-role="cuidador">
-                <span class="role-icon">🩺</span>
+                <span class="role-icon">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+                </span>
                 <div class="role-info">
                   <strong>Responsável / Cuidador</strong>
                   <p>Acompanhe um familiar, receba relatórios e alertas no WhatsApp.</p>
@@ -556,7 +574,9 @@
 
               <!-- Opção 3: Pessoal / Comum -->
               <div class="role-choice-card" data-role="pessoal">
-                <span class="role-icon">👤</span>
+                <span class="role-icon">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                </span>
                 <div class="role-info">
                   <strong>Uso Pessoal / Comum</strong>
                   <p>Organização autônoma: compromissos com horário, reuniões e tarefas.</p>
@@ -580,7 +600,7 @@
 
             <div class="register-actions">
               <button id="btn-cancel-register" class="btn-cancel-reg" style="display: none;">Cancelar</button>
-              <button id="btn-submit-register" class="btn-submit-reg">🚀 Criar Conta e Começar</button>
+              <button id="btn-submit-register" class="btn-submit-reg">Criar Conta e Começar</button>
             </div>
           </div>
         </div>
@@ -589,8 +609,8 @@
     </div>
 
     <!-- Scripts da Aplicação -->
-    <script src="js/notifications.js?v=20261125_01"></script>
-    <script src="js/voice.js?v=20261125_01"></script>
-    <script src="js/app.js?v=20261125_01"></script>
+    <script src="js/notifications.js?v=20261125_02"></script>
+    <script src="js/voice.js?v=20261125_02"></script>
+    <script src="js/app.js?v=20261125_02"></script>
   </body>
 </html>

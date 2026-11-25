@@ -27,14 +27,13 @@ class VoiceController {
       }
       this.isSupported = true;
 
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
       this.recognition = new SpeechRecognition();
       this.recognition.lang = "pt-BR";
-      // Em celulares (especialmente iOS), continuous=true causa travamento e encerramento imediato.
-      this.recognition.continuous = !isMobile;
-      this.recognition.interimResults = !isIOS;
+      // Apenas no WebKit do iOS o continuous=true quebra; no Android e Desktop continuous=true permite falar múltiplas frases com pausas
+      this.recognition.continuous = !isIOS;
+      this.recognition.interimResults = true;
       this.recognition.maxAlternatives = 1;
 
       this.recognition.onstart = () => {
@@ -69,14 +68,14 @@ class VoiceController {
         this.accumulatedTranscript = cleanPhrases.join(" ").trim();
         this.onProgress(this.accumulatedTranscript);
 
-        // Se houver fala e 3.5 segundos de silêncio, conclui automaticamente
+        // Se houver fala e 5 segundos de silêncio (ou toque manual), conclui automaticamente
         clearTimeout(this.silenceTimer);
         if (this.accumulatedTranscript.length > 3) {
           this.silenceTimer = setTimeout(() => {
             if (this.isRecording) {
               this.stop();
             }
-          }, 3500);
+          }, 5000);
         }
       };
 

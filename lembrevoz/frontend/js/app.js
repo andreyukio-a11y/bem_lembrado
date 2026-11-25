@@ -14,7 +14,11 @@ const ICONS = {
   reschedule: `<svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>`,
   accessibility: `<svg viewBox="0 0 24 24"><path d="M12 2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm9 7h-6v13h-2v-6h-2v6H9V9H3V7h18v2z"/></svg>`,
   mic: `<svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>`,
-  stop: `<svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>`
+  stop: `<svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>`,
+  eye: `<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>`,
+  bell: `<svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>`,
+  alarm: `<svg viewBox="0 0 24 24"><path d="M22 5.72l-4.6-3.86-1.29 1.53 4.6 3.86L22 5.72zM7.88 3.39L6.6 1.86 2 5.71l1.29 1.53 4.59-3.85zM12.5 8H11v6l4.75 2.85.75-1.23-4-2.37V8zM12 4c-4.97 0-9 4.03-9 9 0 4.97 4.02 9 9 9s9-4.03 9-9c0-4.97-4.03-9-9-9zm0 16c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>`,
+  alert: `<svg viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>`
 };
 
 function initApp() {
@@ -212,10 +216,19 @@ function initApp() {
   const optSettingsReport = document.getElementById("opt-settings-report");
   const optSettingsTutorial = document.getElementById("opt-settings-tutorial");
 
-  // Sistema Dinâmico de Perfis
+  function getDeviceUserId() {
+    let devId = localStorage.getItem("bemlembrado_device_uid_v1");
+    if (!devId) {
+      devId = "u_" + Math.random().toString(36).substring(2, 9);
+      localStorage.setItem("bemlembrado_device_uid_v1", devId);
+    }
+    return devId;
+  }
+
+  // Sistema Dinâmico de Perfis com Isolamento Exclusivo por Dispositivo
   const DEFAULT_PROFILES = [
     {
-      id: "idoso",
+      id: getDeviceUserId(),
       name: "Dona Maria",
       role: "simplificado",
       icon: "",
@@ -224,7 +237,7 @@ function initApp() {
       cuidadorPhone: ""
     },
     {
-      id: "cuidador",
+      id: "cuidador_" + getDeviceUserId(),
       name: "Carlos (Cuidador)",
       role: "cuidador",
       icon: "",
@@ -233,7 +246,7 @@ function initApp() {
       cuidadorPhone: ""
     },
     {
-      id: "pessoal",
+      id: "pessoal_" + getDeviceUserId(),
       name: "Meu Perfil",
       role: "pessoal",
       icon: "",
@@ -259,6 +272,15 @@ function initApp() {
   }
 
   let profilesList = getStoredProfiles();
+  const deviceUid = getDeviceUserId();
+  // Garante que perfis genéricos 'idoso' sejam isolados exclusivamente para este aparelho
+  profilesList = profilesList.map(p => {
+    if (p.id === "idoso") {
+      return { ...p, id: deviceUid };
+    }
+    return p;
+  });
+  saveStoredProfiles(profilesList);
   let activeProfileId = localStorage.getItem("bemlembrado_active_id_v3") || profilesList[0].id;
   let activeProfile = profilesList.find(p => p.id === activeProfileId) || profilesList[0];
 
@@ -1634,21 +1656,21 @@ function initApp() {
       }
     });
 
-    // Renderiza blocos com títulos
+    // Renderiza blocos com títulos limpos e profissionais
     if (blockFixados.length) {
-      renderBlock("📌 Fixados no Topo", blockFixados);
+      renderBlock("Fixados no Topo", blockFixados);
     }
     if (blockAtrasados.length) {
-      renderBlock("⚠️ Atrasados / Pendentes", blockAtrasados);
+      renderBlock("Atrasados e Pendentes", blockAtrasados);
     }
     if (blockHoje.length) {
-      renderBlock("⏰ Para Hoje", blockHoje);
+      renderBlock("Para Hoje", blockHoje);
     }
     if (blockFuturos.length) {
-      renderBlock("📅 Próximos Dias", blockFuturos);
+      renderBlock("Próximos Dias", blockFuturos);
     }
     if (blockConcluidos.length) {
-      renderBlock("✓ Concluídos", blockConcluidos);
+      renderBlock("Concluídos", blockConcluidos);
     }
 
     attachCardInteractions();
@@ -1675,18 +1697,18 @@ function initApp() {
     const now = new Date();
     const itemDate = item.data_hora_alvo ? new Date(item.data_hora_alvo) : null;
     
-    // Status visual
+    // Status visual limpo (sem emojis)
     let statusClass = "";
     let statusBadge = "";
     if (item.status === "concluido") {
       statusClass = "concluido";
-      statusBadge = `<span class="status-badge concluido">✓ Concluído</span>`;
+      statusBadge = `<span class="status-badge concluido">${ICONS.check} Concluído</span>`;
     } else if (itemDate && itemDate < now) {
       statusClass = "atrasado";
-      statusBadge = `<span class="status-badge atrasado">⚠️ Atrasado</span>`;
+      statusBadge = `<span class="status-badge atrasado">${ICONS.alert} Atrasado</span>`;
     } else if (itemDate && (itemDate - now) < 45 * 60 * 1000) {
       statusClass = "proximo";
-      statusBadge = `<span class="status-badge proximo">⏰ Em breve</span>`;
+      statusBadge = `<span class="status-badge proximo">${ICONS.clock} Em breve</span>`;
     }
 
     let catIcon = ICONS.task;
@@ -1735,20 +1757,20 @@ function initApp() {
       doseHtml = `<span class="card-dose-tag">${item.dose}</span>`;
     }
 
-    // Badge do modo de alerta / notificação
+    // Badge do modo de alerta / notificação com ícone SVG
     let notifType = item.tipo_notificacao || (item.categoria === 'medicacao' ? 'alarme' : (item.categoria === 'compromisso' ? 'notificacao' : 'silencioso'));
-    let notifIcon = "👁️";
+    let notifIcon = ICONS.eye;
     let notifLabel = "Tela";
     if (notifType === "alarme") {
-      notifIcon = "🚨";
+      notifIcon = ICONS.alarm;
       notifLabel = "Alarme";
     } else if (notifType === "notificacao") {
-      notifIcon = "🔔";
+      notifIcon = ICONS.bell;
       notifLabel = "Aviso";
     }
     const notifBadgeHtml = `
-      <button class="card-notif-badge ${notifType} btn-change-notif" data-id="${item.id}" data-title="${item.titulo}" title="Toque para alterar o modo de aviso">
-        ${notifIcon} ${notifLabel}
+      <button class="card-notif-badge ${notifType} btn-change-notif" data-id="${item.id}" data-title="${item.titulo}" title="Modo de aviso: ${notifLabel}">
+        ${notifIcon} <span>${notifLabel}</span>
       </button>
     `;
 

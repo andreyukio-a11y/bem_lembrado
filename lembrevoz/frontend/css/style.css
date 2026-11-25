@@ -1379,6 +1379,20 @@ body.modo-selecao .card-checkbox {
   border-color: #e5e7eb;
 }
 
+.card-notif-badge svg,
+.status-badge svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+  vertical-align: middle;
+}
+
+.notif-choice-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
 /* Ajuste Dinâmico e Real de Tamanho de Fonte (Acessibilidade) */
 html.font-grande {
   font-size: 18px !important;
