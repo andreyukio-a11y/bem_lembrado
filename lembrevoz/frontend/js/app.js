@@ -55,7 +55,6 @@ function initApp() {
   const modalMedName = document.getElementById("modal-med-name");
   const btnConfirmYes = document.getElementById("btn-confirm-yes");
   const btnConfirmNo = document.getElementById("btn-confirm-no");
-  const btnSimulateAlarm = document.getElementById("btn-simulate-alarm");
   const btnManualType = document.getElementById("btn-manual-type");
   const btnDailySummary = document.getElementById("btn-daily-summary");
   const btnCaregiverShareRoutine = document.getElementById("btn-caregiver-share-routine");
@@ -1209,17 +1208,70 @@ function initApp() {
     });
   }, 15000);
 
-  // Botão de Teste de Notificação e Alarme nas Configurações
-  const optSettingsTestNotif = document.getElementById("opt-settings-test-notif");
-  if (optSettingsTestNotif) {
-    optSettingsTestNotif.addEventListener("click", async () => {
-      if (window.soundManager) {
-        await window.soundManager.requestNotificationPermission();
-        window.soundManager.playPleasantChime();
-        window.soundManager.notify("Bem Lembrado - Teste 🔔", "As notificações e alarmes estão funcionando perfeitamente!");
-        window.soundManager.speak("Notificações e alarmes ativados com sucesso!");
+  // Gerenciamento de Permissão de Notificações do Dispositivo
+  const optSettingsPermNotif = document.getElementById("opt-settings-perm-notif");
+  const notifPermStatusText = document.getElementById("notif-perm-status-text");
+  const btnToggleNotifPerm = document.getElementById("btn-toggle-notif-perm");
+
+  function updateNotificationPermissionUI() {
+    if (!("Notification" in window)) {
+      if (notifPermStatusText) notifPermStatusText.textContent = "Dispositivo sem suporte a notificações web.";
+      if (btnToggleNotifPerm) {
+        btnToggleNotifPerm.textContent = "Indisponível";
+        btnToggleNotifPerm.disabled = true;
       }
+      return;
+    }
+
+    const perm = Notification.permission;
+    if (perm === "granted") {
+      if (notifPermStatusText) notifPermStatusText.textContent = "Notificações ativas no dispositivo.";
+      if (btnToggleNotifPerm) {
+        btnToggleNotifPerm.textContent = "Ativo";
+        btnToggleNotifPerm.style.background = "#16a34a";
+      }
+    } else if (perm === "denied") {
+      if (notifPermStatusText) notifPermStatusText.textContent = "Bloqueado pelo navegador. Toque no cadeado da URL para liberar.";
+      if (btnToggleNotifPerm) {
+        btnToggleNotifPerm.textContent = "Bloqueado";
+        btnToggleNotifPerm.style.background = "#dc2626";
+      }
+    } else {
+      if (notifPermStatusText) notifPermStatusText.textContent = "Toque para permitir avisos na tela e alarmes.";
+      if (btnToggleNotifPerm) {
+        btnToggleNotifPerm.textContent = "Permitir";
+        btnToggleNotifPerm.style.background = "var(--primary)";
+      }
+    }
+  }
+
+  updateNotificationPermissionUI();
+
+  if (btnToggleNotifPerm || optSettingsPermNotif) {
+    const handlePermAction = async () => {
+      if (!("Notification" in window)) {
+        alert("Seu navegador não suporta notificações web.");
+        return;
+      }
+      if (Notification.permission === "denied") {
+        alert("As notificações estão bloqueadas nas configurações do seu navegador para este site. Para ativar, toque no ícone de cadeado ao lado do endereço e selecione 'Permitir notificações'.");
+        return;
+      }
+      if (window.soundManager) {
+        const result = await window.soundManager.requestNotificationPermission();
+        updateNotificationPermissionUI();
+        if (result === "granted") {
+          window.soundManager.playSuccessChime();
+          window.soundManager.notify("Bem Lembrado", "Notificações ativadas com sucesso no seu dispositivo!");
+        }
+      }
+    };
+
+    if (btnToggleNotifPerm) btnToggleNotifPerm.addEventListener("click", (e) => {
+      e.stopPropagation();
+      handlePermAction();
     });
+    if (optSettingsPermNotif) optSettingsPermNotif.addEventListener("click", handlePermAction);
   }
   // ========== FIM DO SISTEMA DE ALARME ==========
 
@@ -1350,12 +1402,6 @@ function initApp() {
       if (manual && manual.trim()) {
         processSpokenText(manual.trim());
       }
-    });
-  }
-
-  if (btnSimulateAlarm) {
-    btnSimulateAlarm.addEventListener("click", () => {
-      openCheckCycleModal(null, "Remédio de Pressão (Simulação)");
     });
   }
 

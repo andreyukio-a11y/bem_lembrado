@@ -141,7 +141,18 @@ ATENÇÃO CRUCIAL PARA MÚLTIPLAS DEMANDAS:
 
 Regras de cada item:
 1. 'categoria': exatamente uma destas: "medicacao", "compromisso" ou "tarefa".
-2. 'titulo': Extremamente conciso e direto (máximo 2 a 4 palavras). Apenas o nome da tarefa/remédio (ex: "Remédio de Pressão", "Remédio de Ansiedade", "Tomar Dipirona", "Reunião de Trabalho", "Comprar Pão", "Limpar a Casa"). NUNCA coloque datas ou horários no título.
+2. 'titulo': Título elegante, profissional e resumido (máximo 2 a 4 palavras), no infinitivo ou substantivo.
+   - NUNCA copie a fala do usuário literalmente. Transforme frases conversacionais em títulos objetivos:
+     * "eu tenho que ir na casa da minha vó" -> "Visitar a Avó"
+     * "fazer almoço à 1 da tarde" -> "Fazer Almoço"
+     * "tenho uma atividade avaliativa" -> "Atividade Avaliativa" ou "Prova"
+     * "reunião com o cliente tal" -> "Reunião de Trabalho"
+     * "passar na farmácia pegar gaze" -> "Farmácia"
+     * "levar o carro na oficina" -> "Oficina Mecânica"
+     * "comprar pão e leite" -> "Comprar Pão e Leite"
+     * "fazer caminhada no parque" -> "Caminhada"
+     * "remédio do coração" -> "Remédio do Coração"
+   - NUNCA inclua pronomes ("eu", "minha"), preâmbulos ("eu tenho que", "preciso", "não esquecer de", "vou", "ir na"), nem datas ou horários no título.
 3. 'data_hora_alvo': Data e hora no formato ISO (YYYY-MM-DDTHH:MM:SS) de início calculadas a partir da fala (ou null se não informada).
 4. 'data_hora_fim': Data e hora no formato ISO (YYYY-MM-DDTHH:MM:SS) de término quando a fala indicar um intervalo/duração (ex: "reunião das 14h às 16h", "aula das 8h às 11h") ou null.
 5. 'tipo_notificacao': "alarme" (para medicamentos ou urgentes), "notificacao" (compromissos) ou "silencioso" (tarefas simples), a menos que solicitado diferente pelo usuário.
@@ -526,6 +537,32 @@ def clean_concise_title(transcription: str, categoria: str = "tarefa") -> str:
 
     # Remove adjetivos vazios
     t = re.sub(r'\b(importante|urgente)\b', '', t, flags=re.IGNORECASE)
+
+    # Mapeia ações e expressões coloquiais para títulos elegantes e profissionais
+    colloquial_actions = [
+        (r'^(?:ir\s+(?:na|no|em|para|a|pra)\s+casa\s+d[ao]\s+)(.*)', r'Visitar \1'),
+        (r'^(?:ir\s+(?:na|no|em|ao|[aà]|pra)\s+)(.*)', r'Ir a \1'),
+        (r'^(?:passar\s+(?:na|no|em)\s+)(.*)', r'\1'),
+        (r'^(?:fazer\s+o?\s*almo[cç]o)', r'Fazer Almoço'),
+        (r'^(?:fazer\s+o?\s*jantar)', r'Fazer Jantar'),
+        (r'^(?:fazer\s+o?\s*caf[eé])', r'Tomar Café'),
+        (r'^(?:fazer\s+caminhada|caminhar)', r'Caminhada'),
+        (r'^(?:fazer\s+compras|compras|ir\s+[aà]s\s+compras)', r'Compras'),
+        (r'^(?:ir\s+(?:ao|no)\s+m[eé]dico|consulta\s+m[eé]dica)', r'Consulta Médica'),
+        (r'^(?:ir\s+(?:ao|no)\s+dentista)', r'Dentista'),
+        (r'^(?:atividade\s+avaliativa)', r'Atividade Avaliativa'),
+        (r'^(?:fazer\s+prova|prova)', r'Prova'),
+    ]
+    for pat, rep in colloquial_actions:
+        if re.search(pat, t, flags=re.IGNORECASE):
+            t = re.sub(pat, rep, t, flags=re.IGNORECASE)
+            break
+
+    # Normaliza termos de parentesco para título profissional
+    t = re.sub(r'\bminha\s+(v[oó]|av[oó])\b', 'a Avó', t, flags=re.IGNORECASE)
+    t = re.sub(r'\bmeu\s+(v[oô]|av[oô])\b', 'o Avô', t, flags=re.IGNORECASE)
+    t = re.sub(r'\bminha\s+m[aã]e\b', 'a Mãe', t, flags=re.IGNORECASE)
+    t = re.sub(r'\bmeu\s+pai\b', 'o Pai', t, flags=re.IGNORECASE)
 
     # Limpa conectivos e preposições que sobraram no começo ou fim repetidamente
     for _ in range(4):

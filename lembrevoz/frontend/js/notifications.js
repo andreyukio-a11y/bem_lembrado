@@ -9,6 +9,22 @@ class SoundNotificationManager {
     this.isAlarmRunning = false;
     this.voiceFeedbackEnabled = true;
     this.speechRate = parseFloat(localStorage.getItem("bemlembrado_voice_rate")) || 0.95;
+    this.swRegistration = null;
+    this.initServiceWorker();
+  }
+
+  async initServiceWorker() {
+    if ("serviceWorker" in navigator) {
+      try {
+        const reg = await navigator.serviceWorker.register("sw.js");
+        this.swRegistration = reg;
+        console.log("[LembreVoz SW] Registrado:", reg.scope);
+        return reg;
+      } catch (err) {
+        console.warn("[LembreVoz SW] Erro ao registrar:", err);
+      }
+    }
+    return null;
   }
 
   _initAudioContext() {
@@ -155,12 +171,16 @@ class SoundNotificationManager {
   }
 
   async requestNotificationPermission() {
-    if ("Notification" in window && Notification.permission !== "granted") {
-      try {
-        return await Notification.requestPermission();
-      } catch (e) {}
+    if (!("Notification" in window)) return "unsupported";
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm === "granted") {
+        await this.initServiceWorker();
+      }
+      return perm;
+    } catch (e) {
+      return Notification.permission;
     }
-    return Notification.permission;
   }
 
   async notify(title, body, tag = "bemlembrado-alerta") {
@@ -168,32 +188,43 @@ class SoundNotificationManager {
 
     if (Notification.permission === "default") {
       try {
-        await Notification.requestPermission();
+        await this.requestNotificationPermission();
       } catch (e) {}
     }
 
     if (Notification.permission === "granted") {
       const options = {
         body: body,
-        icon: "assets/logo-light-transparent.png",
-        badge: "assets/logo-light-transparent.png",
+        icon: "icon-192.png",
+        badge: "favicon.png",
         vibrate: [300, 150, 300, 150, 300],
         tag: tag,
         renotify: true,
         requireInteraction: true
       };
 
+      // 1. Tenta exibir via Service Worker (obrigatório para Android Chrome e mobile)
       try {
-        if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
-          const reg = await navigator.serviceWorker.ready;
-          await reg.showNotification(title, options);
-          return;
+        if ("serviceWorker" in navigator) {
+          let reg = this.swRegistration || await navigator.serviceWorker.getRegistration();
+          if (!reg) {
+            reg = await navigator.serviceWorker.ready;
+          }
+          if (reg && reg.showNotification) {
+            await reg.showNotification(title, options);
+            return;
+          }
         }
-      } catch (swErr) {}
+      } catch (swErr) {
+        console.warn("[Notificação SW]", swErr);
+      }
 
+      // 2. Fallback para desktop se Service Worker não estiver ativo
       try {
         new Notification(title, options);
-      } catch (e) {}
+      } catch (e) {
+        console.warn("[Notificação Nativa]", e);
+      }
     }
   }
 }
