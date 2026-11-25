@@ -1408,9 +1408,12 @@ function initApp() {
       const result = await response.json();
       if (result.success) {
         const count = result.total_created || 1;
+        const provider = (result.data && result.data.ai_provider) ? result.data.ai_provider : "";
+        const isGemini = provider.toLowerCase().includes("gemini");
+        const badge = isGemini ? "Gemini AI ✨" : "IA Local";
         const msg = count > 1 
-          ? `✓ ${count} lembretes criados com sucesso!` 
-          : "✓ Lembrete criado com sucesso!";
+          ? `✓ ${count} lembretes criados com sucesso! (${badge})` 
+          : `✓ Lembrete criado com sucesso! (${badge})`;
 
         if (window.soundManager) {
           window.soundManager.playSuccessChime();
@@ -1883,6 +1886,38 @@ function initApp() {
     }, 450);
   }
 
+  // Verifica status da integração com a IA
+  async function checkAIStatus() {
+    try {
+      const res = await fetch("/api/ai/status");
+      const pill = document.getElementById("ai-status-pill");
+      if (res.ok) {
+        const data = await res.json();
+        if (pill) {
+          if (data.gemini_configured) {
+            pill.innerHTML = "✨ Gemini AI Ativo";
+            pill.className = "ai-status-pill online";
+            pill.title = `Conectado à IA Google Gemini (${data.key_prefix})`;
+          } else {
+            pill.innerHTML = "⚙️ IA em Modo Local";
+            pill.className = "ai-status-pill local";
+            pill.title = "GEMINI_API_KEY não configurada no servidor. Usando regras inteligentes locais.";
+          }
+        }
+      } else if (pill) {
+        pill.innerHTML = "⚙️ IA em Modo Local";
+        pill.className = "ai-status-pill local";
+      }
+    } catch (e) {
+      const pill = document.getElementById("ai-status-pill");
+      if (pill) {
+        pill.innerHTML = "⚙️ IA em Modo Local";
+        pill.className = "ai-status-pill local";
+      }
+    }
+  }
+
+  checkAIStatus();
   loadItems();
 }
 

@@ -111,6 +111,7 @@ def classify_and_extract(transcription: str, current_time: datetime = None) -> d
     # 2. Analisador local inteligente (Zero dependências externas, suporta múltiplos itens)
     result = _rule_based_multiple_extraction(cleaned_transcription, current_time)
     result["transcricao_limpa"] = cleaned_transcription
+    result["ai_provider"] = "local_rules"
     return result
 
 def _call_gemini_api(transcription: str, current_time: datetime, api_key: str = None) -> dict:
@@ -212,9 +213,12 @@ def split_multiple_intents(text: str) -> list:
         flags=re.IGNORECASE
     )
 
-    # 3. Quebras por novas orações de ação com conjunção 'e' ou 'aí'
+    # 3. Quebras por novas orações de ação com conjunção 'e' ou 'aí' ou vírgula
+    # Permite marcadores temporais antes do verbo/substantivo (ex: "e sexta-feira eu tenho...", "e amanhã preciso...", "e hoje às 21h...")
+    temporal_prefix = r'(?:(?:hoje|amanh[aã]|depois\s+de\s+amanh[aã]|segunda(?:-feira)?|ter[cç]a(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|s[aá]bado|domingo|[aàá]s\s*\d{1,2}(?::\d{2})?(?:\s*(?:da\s+manh[aã]|da\s+tarde|da\s+noite))?)\s+)*'
+
     s = re.sub(
-        r'\s*(?:,\s*|\s+e\s+|\s+a[ií]\s+)(?=(?:eu\s+)?(?:tenho\s+(?:que|de|um|uma)?|preciso\s+(?:de)?|vou\s+|quero\s+|lembrar\s+(?:de)?|n[aã]o\s+esquecer\s+(?:de)?|tomar\s+|beber\s+|pingar\s+|aplicar\s+|passar\s+|almo[cç]ar\s*|jantar\s*|fazer\s+|limpar\s+|lavar\s+|comprar\s+|pagar\s+|ligar\s+|buscar\s+|levar\s+|visitar\s+|caminhar\s+|estudar\s+|trabalhar\s+|dar\s+|ir\s+(?:ao?|para)?|consulta\s+|reuni[aã]o\s+|aula\s+|treino\s+|dentista\s+|m[eé]dico\s+|(?:o\s+|a\s+|um\s+|uma\s+)?(?:rem[eé]dio|medicamento|comprimido|gotas?|dose)\b))\b',
+        r'\s*(?:,\s*|\s+e\s+|\s+a[ií]\s+)(?=' + temporal_prefix + r'(?:eu\s+)?(?:tenho\s+(?:que|de|um|uma)?|preciso\s+(?:de)?|vou\s+|quero\s+|lembrar\s+(?:de)?|n[aã]o\s+esquecer\s+(?:de)?|tomar\s+|beber\s+|pingar\s+|aplicar\s+|passar\s+|almo[cç]ar\s*|jantar\s*|fazer\s+|limpar\s+|lavar\s+|comprar\s+|pagar\s+|ligar\s+|buscar\s+|levar\s+|visitar\s+|caminhar\s+|estudar\s+|trabalhar\s+|dar\s+|ir\s+(?:ao?|para)?|consulta\s+|reuni[aã]o\s+|aula\s+|treino\s+|dentista\s+|m[eé]dico\s+|(?:o\s+|a\s+|um\s+|uma\s+)?(?:rem[eé]dio|medicamento|comprimido|gotas?|dose)\b))\b',
         ' ||| ',
         s,
         flags=re.IGNORECASE
@@ -236,9 +240,15 @@ def split_multiple_intents(text: str) -> list:
         flags=re.IGNORECASE
     )
 
-    parts = [p.strip() for p in s.split('|||') if p.strip()]
-    valid_parts = [p for p in parts if len(p) >= 3]
-    return valid_parts if valid_parts else [text.strip()]
+    raw_parts = [p.strip() for p in s.split('|||') if p.strip()]
+    cleaned_parts = []
+    for p in raw_parts:
+        clean_p = re.sub(r'^(?:,\s*|\s*e\s+|\s*a[ií]\s+)+', '', p, flags=re.IGNORECASE)
+        clean_p = re.sub(r'[\s,]+$', '', clean_p)
+        if len(clean_p) >= 3:
+            cleaned_parts.append(clean_p)
+
+    return cleaned_parts if cleaned_parts else [text.strip()]
 
 def _rule_based_multiple_extraction(transcription: str, current_time: datetime) -> dict:
     """Extrai múltiplos itens localmente a partir de uma fala dividida."""
@@ -480,8 +490,7 @@ def clean_concise_title(transcription: str, categoria: str = "tarefa") -> str:
             return "Tomar Remédio"
 
     # 2. Para compromissos e tarefas (ou medicação genérica)
-    # Remove preâmbulos e verbos introdutórios
-    t = re.sub(r'^(?:eu\s+)?(?:tem(?: um| uma)?|tenho(?: um| uma| que)?|preciso(?: de)?|vou|quero|lembrar(?:-me)? de|me lembr(?:a|e) de|lembrete de|anota(?:r)?|marcar|agendar|nao esquecer de|favor)\s+', '', txt, flags=re.IGNORECASE)
+    t = txt
 
     # Remove termos temporais, dias da semana e datas (com e sem acento)
     patterns_to_remove = [
@@ -501,6 +510,12 @@ def clean_concise_title(transcription: str, categoria: str = "tarefa") -> str:
     ]
     for p in patterns_to_remove:
         t = re.sub(p, '', t, flags=re.IGNORECASE)
+
+    # Remove preâmbulos e verbos introdutórios
+    t = re.sub(r'^(?:eu\s+)?(?:tem(?: um| uma)?|tenho(?: um| uma| que)?|preciso(?: de)?|vou|quero|lembrar(?:-me)? de|me lembr(?:a|e) de|lembrete de|anota(?:r)?|marcar|agendar|nao esquecer de|favor)\s+', '', t.strip(), flags=re.IGNORECASE)
+
+    # Remove artigos no início (ex: "uma reunião" -> "reunião")
+    t = re.sub(r'^(?:um|uma|o|a|os|as)\s+', '', t.strip(), flags=re.IGNORECASE)
 
     # Remove adjetivos vazios
     t = re.sub(r'\b(importante|urgente)\b', '', t, flags=re.IGNORECASE)
