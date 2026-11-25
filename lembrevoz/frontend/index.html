@@ -21,7 +21,9 @@
       </div>
       <div class="header-actions">
         <button id="btn-user-profile" class="btn-profile-badge" title="Trocar ou Gerenciar Perfis">
-          <span id="profile-badge-icon">👵</span>
+          <span id="profile-badge-icon" class="profile-badge-icon-wrap">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+          </span>
           <span id="profile-badge-name">Dona Maria</span>
           <span class="profile-badge-arrow">▾</span>
         </button>
@@ -35,12 +37,12 @@
     <div id="caregiver-banner" class="caregiver-banner" style="display: none;">
       <div class="caregiver-banner-content">
         <div id="caregiver-banner-title">
-          <span>🩺</span> <strong>Modo Cuidador:</strong> Acompanhando Dona Maria
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="vertical-align: middle; margin-right: 4px;"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg> <strong>Modo Cuidador:</strong> Acompanhando Dona Maria
         </div>
         <div class="caregiver-banner-actions">
-          <button id="btn-caregiver-share-routine" class="btn-caregiver-routine" title="Enviar resumo da rotina de hoje no WhatsApp">📋 Enviar Rotina</button>
-          <button id="btn-caregiver-quick-msg" class="btn-caregiver-zap" title="Enviar mensagem no WhatsApp">📱 WhatsApp</button>
-          <button id="btn-caregiver-report" class="btn-caregiver-report" title="Ver relatório de adesão">📊 Adesão</button>
+          <button id="btn-caregiver-share-routine" class="btn-caregiver-routine" title="Enviar resumo da rotina de hoje no WhatsApp">Enviar Rotina</button>
+          <button id="btn-caregiver-quick-msg" class="btn-caregiver-zap" title="Enviar mensagem no WhatsApp">WhatsApp</button>
+          <button id="btn-caregiver-report" class="btn-caregiver-report" title="Ver relatório de adesão">Adesão</button>
         </div>
       </div>
     </div>
@@ -60,12 +62,15 @@
         <p id="voice-status" class="voice-status">Toque no microfone para falar</p>
         <p id="live-transcription" class="live-transcription"></p>
         <div class="text-input-hint">
-          <button id="btn-manual-type" class="btn-manual-input">⌨️ Digitar texto</button>
+          <button id="btn-manual-type" class="btn-manual-input">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="vertical-align: -2px; margin-right: 4px;"><path d="M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z"/></svg>
+            Digitar texto
+          </button>
           <span class="action-divider">·</span>
-          <button id="btn-daily-summary" class="btn-daily-summary" title="Ouvir o resumo falado do seu dia">🔊 Ouvir meu dia</button>
-        </div>
-        <div class="ai-status-row">
-          <span id="ai-status-pill" class="ai-status-pill" title="Status da Inteligência Artificial">✨ Verificando IA...</span>
+          <button id="btn-daily-summary" class="btn-daily-summary" title="Ouvir o resumo falado do seu dia">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="vertical-align: -2px; margin-right: 4px;"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+            Ouvir meu dia
+          </button>
         </div>
       </section>
 
@@ -85,7 +90,8 @@
           Tarefas
         </button>
         <button class="filter-pill" data-filter="pendentes">
-          ⚠️ Pendentes
+          <svg viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+          Pendentes
         </button>
       </section>
 
@@ -94,7 +100,8 @@
         <div class="feed-header">
           <h2>Seus Lembretes</h2>
           <button id="btn-toggle-select" class="btn-toggle-select" title="Selecionar múltiplos lembretes">
-            ☑️ Selecionar
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align: -2px; margin-right: 4px;"><path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.89-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+            Selecionar
           </button>
         </div>
         <div id="cards-list" class="cards-list">
@@ -134,7 +141,7 @@
         </div>
 
         <!-- Grupo: Aparência e Acessibilidade -->
-        <div class="settings-group">
+        <div class="settings-group" id="grp-settings-appearance">
           <div class="settings-group-title">Aparência e Acessibilidade</div>
           <div class="settings-option" id="opt-theme-toggle">
             <div class="settings-option-text">
@@ -156,20 +163,30 @@
           </div>
         </div>
 
-        <!-- Grupo: Pessoa de Confiança / Cuidador -->
-        <div class="settings-group">
-          <div class="settings-group-title">Pessoa de Confiança (Cuidador)</div>
+        <!-- Grupo: Pessoa de Confiança / Cuidador (Apenas Perfil Cuidador) -->
+        <div class="settings-group" id="grp-settings-caregiver">
+          <div class="settings-group-title">Vínculo e Alertas do Cuidador</div>
+          <div class="settings-option" style="flex-direction: column; align-items: stretch; gap: 8px;">
+            <div class="settings-option-text">
+              <h4>Pessoa Idosa Vinculada</h4>
+              <p>Nome da pessoa que você cuida e acompanha</p>
+            </div>
+            <input type="text" id="input-cuidador-dependente" class="settings-input" placeholder="Ex: Dona Maria" value="Dona Maria">
+          </div>
           <div class="settings-option" style="flex-direction: column; align-items: stretch; gap: 8px;">
             <div class="settings-option-text">
               <h4>WhatsApp do Cuidador</h4>
-              <p>Número para avisos caso o remédio não seja tomado</p>
+              <p>Número para avisos caso o remédio não seja tomado (com DDD)</p>
             </div>
-            <input type="tel" id="input-cuidador-phone" class="settings-input" placeholder="Ex: 11999998888 (com DDD)">
+            <input type="tel" id="input-cuidador-phone" class="settings-input" placeholder="Ex: 11999998888">
           </div>
+          <button id="btn-save-caregiver-link" class="btn-primary" style="margin-top: 8px; width: 100%;">
+            Salvar Vínculo e Contato
+          </button>
         </div>
 
         <!-- Grupo: Métodos de Exclusão -->
-        <div class="settings-group">
+        <div class="settings-group" id="grp-settings-deletion">
           <div class="settings-group-title">Método de Exclusão</div>
           <div class="settings-option" id="opt-swipe-toggle">
             <div class="settings-option-text">
@@ -188,7 +205,7 @@
         </div>
 
         <!-- Grupo: Feedback de Voz -->
-        <div class="settings-group">
+        <div class="settings-group" id="grp-settings-voice">
           <div class="settings-group-title">Feedback e Síntese de Voz</div>
           <div class="settings-option" id="opt-voice-toggle">
             <div class="settings-option-text">
@@ -211,7 +228,7 @@
         </div>
 
         <!-- Grupo: Perfis de Uso -->
-        <div class="settings-group">
+        <div class="settings-group" id="grp-settings-profile">
           <div class="settings-group-title">Perfil e Usuários</div>
           <div class="settings-option" id="opt-profile-manage">
             <div class="settings-option-text">
@@ -219,34 +236,40 @@
               <p id="profile-desc">Modo Simplificado / Idoso</p>
             </div>
             <button id="btn-settings-open-profiles" class="btn-settings-profile">
-              Trocar Perfil ➔
+              Trocar Perfil ›
             </button>
           </div>
         </div>
 
         <!-- Grupo: Recursos e Apresentação -->
-        <div class="settings-group">
+        <div class="settings-group" id="grp-settings-resources">
           <div class="settings-group-title">Recursos do Aplicativo</div>
           <div class="settings-option" id="opt-settings-test-notif" style="cursor: pointer;">
             <div class="settings-option-text">
               <h4>Testar Alarme e Notificação</h4>
               <p>Ativa permissões e testa som, voz e aviso na tela</p>
             </div>
-            <span class="settings-icon-preview">🔔</span>
+            <span class="settings-icon-preview">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+            </span>
           </div>
           <div class="settings-option" id="opt-settings-report" style="cursor: pointer;">
             <div class="settings-option-text">
               <h4>Relatório de Adesão à Medicação</h4>
               <p>Histórico e estatísticas de remédios tomados</p>
             </div>
-            <span class="settings-icon-preview">📊</span>
+            <span class="settings-icon-preview">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+            </span>
           </div>
           <div class="settings-option" id="opt-settings-tutorial" style="cursor: pointer;">
             <div class="settings-option-text">
               <h4>Apresentação e Tutorial</h4>
               <p>Rever o carrossel de introdução e guia das funções</p>
             </div>
-            <span class="settings-icon-preview">✨</span>
+            <span class="settings-icon-preview">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            </span>
           </div>
         </div>
 
@@ -330,7 +353,7 @@
           <h4>Histórico de Medicações</h4>
           <ul id="report-history" class="report-history"></ul>
           <div style="display: flex; gap: 10px; margin-top: 14px;">
-            <button id="btn-share-report" class="btn-primary" style="flex: 1.5;">📱 Compartilhar no WhatsApp</button>
+            <button id="btn-share-report" class="btn-primary" style="flex: 1.5;">Enviar Relatório no WhatsApp</button>
             <button id="btn-close-report-action" class="btn-cancel-reg" style="flex: 1;">Fechar</button>
           </div>
         </div>
@@ -351,7 +374,7 @@
         </div>
         <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border);">
           <button id="btn-add-profile-trigger" class="btn-primary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
-            <span>➕</span> Cadastrar Novo Perfil
+            Cadastrar Novo Perfil
           </button>
         </div>
       </div>
@@ -371,8 +394,8 @@
           Deseja avisar a pessoa de confiança (cuidador/família) para verificar?
         </div>
         <div class="modal-buttons">
-          <button id="btn-escalate-zap" class="btn-confirm-yes" style="background: #25d366; color: white;">
-            📱 Avisar no WhatsApp
+          <button id="btn-escalate-zap" class="btn-confirm-yes" style="background: #16a34a; color: white;">
+            Avisar no WhatsApp
           </button>
           <button id="btn-escalate-dismiss" class="btn-confirm-no">Já Verifiquei / Fechar</button>
         </div>

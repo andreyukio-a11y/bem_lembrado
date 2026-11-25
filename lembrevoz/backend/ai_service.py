@@ -45,12 +45,15 @@ def norm(text: str) -> str:
 
 def clean_repetitive_text(text: str) -> str:
     """
-    Higieniza repetições em camadas vindas de snapshots de voz do Android/Chrome.
+    Higieniza repetições em camadas vindas de snapshots de voz do Android/Chrome e interjeições coloquiais.
     Exemplo: 'fazer fazer fazer atividades' -> 'fazer atividades'
     """
     if not text:
         return ""
     
+    # Remove interjeições coloquiais comuns no início da fala
+    text = re.sub(r'^(?:p[oô]|olha|ah|cara|bom|ent[aã]o|tipo|assim|ou|ei|veja|escuta)[\s,]+', '', text.strip(), flags=re.IGNORECASE)
+
     words = text.split()
     deduped = []
     for w in words:
@@ -120,11 +123,10 @@ def _call_gemini_api(transcription: str, current_time: datetime, api_key: str = 
 
     active_key = api_key or get_gemini_api_key() or GEMINI_API_KEY
     models_to_try = [
-        "gemini-3-flash-preview",
         "gemini-3.5-flash",
+        "gemini-3-flash-preview",
         "gemini-3.8-flash",
-        "gemini-flash-latest",
-        "gemma-4-26b-a4b-it"
+        "gemini-flash-latest"
     ]
     
     prompt = f"""
@@ -201,6 +203,8 @@ def split_multiple_intents(text: str) -> list:
         return []
 
     s = text.strip()
+    # Remove interjeições no início
+    s = re.sub(r'^(?:p[oô]|olha|ah|cara|bom|ent[aã]o|tipo|assim|ou|ei|veja|escuta)[\s,]+', '', s, flags=re.IGNORECASE)
 
     # 1. Quebras por pontuação padrão
     s = re.sub(r'\s*(?:;\s*|\.\s+)\s*', ' ||| ', s)
@@ -214,11 +218,13 @@ def split_multiple_intents(text: str) -> list:
     )
 
     # 3. Quebras por novas orações de ação com conjunção 'e' ou 'aí' ou vírgula
-    # Permite marcadores temporais antes do verbo/substantivo (ex: "e sexta-feira eu tenho...", "e amanhã preciso...", "e hoje às 21h...")
-    temporal_prefix = r'(?:(?:hoje|amanh[aã]|depois\s+de\s+amanh[aã]|segunda(?:-feira)?|ter[cç]a(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|s[aá]bado|domingo|[aàá]s\s*\d{1,2}(?::\d{2})?(?:\s*(?:da\s+manh[aã]|da\s+tarde|da\s+noite))?)\s+)*'
+    # Permite marcadores temporais com preposições opcionais antes do verbo/substantivo (ex: "e aí na sexta-feira eu tenho...", "e no domingo tenho...", "e amanhã preciso...")
+    temporal_prefix = r'(?:(?:(?:na|no|em|neste|nesta|pr[oó]xim[ao])\s+)?(?:hoje|amanh[aã]|depois\s+de\s+amanh[aã]|segunda(?:-feira)?|ter[cç]a(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|s[aá]bado|domingo|[aàá]s?\s*\d{1,2}(?::\d{2})?(?:\s*(?:da\s+manh[aã]|da\s+tarde|da\s+noite))?)\s+)*'
+
+    actions = r'(?:eu\s+)?(?:tenho\s+(?:que|de|um|uma)?|preciso\s+(?:de)?|vou\s+|quero\s+|lembrar\s+(?:de)?|n[aã]o\s+esquecer\s+(?:de)?|tomar\s+|beber\s+|pingar\s+|aplicar\s+|passar\s+|almo[cç]ar\s*|jantar\s*|fazer\s+|limpar\s+|lavar\s+|comprar\s+|pagar\s+|ligar\s+|buscar\s+|levar\s+|visitar\s+|caminhar\s+|estudar\s+|trabalhar\s+|dar\s+|ir\s+(?:ao?|para|na|no)?|consulta\s+|reuni[aã]o\s+|prova\s+|teste\s+|aula\s+|treino\s+|dentista\s+|m[eé]dico\s+|(?:o\s+|a\s+|um\s+|uma\s+)?(?:rem[eé]dio|medicamento|comprimido|gotas?|dose)\b)'
 
     s = re.sub(
-        r'\s*(?:,\s*|\s+e\s+|\s+a[ií]\s+)(?=' + temporal_prefix + r'(?:eu\s+)?(?:tenho\s+(?:que|de|um|uma)?|preciso\s+(?:de)?|vou\s+|quero\s+|lembrar\s+(?:de)?|n[aã]o\s+esquecer\s+(?:de)?|tomar\s+|beber\s+|pingar\s+|aplicar\s+|passar\s+|almo[cç]ar\s*|jantar\s*|fazer\s+|limpar\s+|lavar\s+|comprar\s+|pagar\s+|ligar\s+|buscar\s+|levar\s+|visitar\s+|caminhar\s+|estudar\s+|trabalhar\s+|dar\s+|ir\s+(?:ao?|para)?|consulta\s+|reuni[aã]o\s+|aula\s+|treino\s+|dentista\s+|m[eé]dico\s+|(?:o\s+|a\s+|um\s+|uma\s+)?(?:rem[eé]dio|medicamento|comprimido|gotas?|dose)\b))\b',
+        r'\s*(?:,\s*|\s+e\s+a[ií]\s+|\s+a[ií]\s+|\s+e\s+)(?=' + temporal_prefix + actions + r')\b',
         ' ||| ',
         s,
         flags=re.IGNORECASE
@@ -226,7 +232,7 @@ def split_multiple_intents(text: str) -> list:
 
     # 4. Quebras por novo horário introduzido por conjunção
     s = re.sub(
-        r'\s+(?:e\s+|a[ií]\s+)(?=(?:[aàá]s\s*\d{1,2}|ao\s+meio[\s-]dia|a\s+meia[\s-]noite|de\s+manh[aã]|de\s+tarde|de\s+noite|na\s+manh[aã]|na\s+tarde|na\s+noite)\b)',
+        r'\s+(?:e\s+|a[ií]\s+)(?=(?:[aàá]s?\s*\d{1,2}|ao\s+meio[\s-]dia|a\s+meia[\s-]noite|de\s+manh[aã]|de\s+tarde|de\s+noite|na\s+manh[aã]|na\s+tarde|na\s+noite)\b)',
         ' ||| ',
         s,
         flags=re.IGNORECASE
@@ -243,7 +249,7 @@ def split_multiple_intents(text: str) -> list:
     raw_parts = [p.strip() for p in s.split('|||') if p.strip()]
     cleaned_parts = []
     for p in raw_parts:
-        clean_p = re.sub(r'^(?:,\s*|\s*e\s+|\s*a[ií]\s+)+', '', p, flags=re.IGNORECASE)
+        clean_p = re.sub(r'^(?:,\s*|\s*e\s+a[ií]\s+|\s*a[ií]\s+|\s*e\s+)+', '', p, flags=re.IGNORECASE)
         clean_p = re.sub(r'[\s,]+$', '', clean_p)
         if len(clean_p) >= 3:
             cleaned_parts.append(clean_p)
@@ -297,7 +303,9 @@ def _rule_based_single_extraction(transcription: str, current_time: datetime) ->
     ]
     palavras_compromisso = [
         "medico", "consulta", "dentista", "reuniao", "encontro", "aula", 
-        "visita", "prova", "seminario", "apresentacao", "entrevista", "orientador", "orientacao", "treino"
+        "visita", "visitar", "prova", "seminario", "apresentacao", "entrevista", 
+        "orientador", "orientacao", "treino", "casa da", "casa do", "aniversario", 
+        "festa", "missa", "culto", "banco", "cartorio", "exame", "teste"
     ]
     
     categoria = "tarefa"
@@ -378,7 +386,7 @@ def _rule_based_single_extraction(transcription: str, current_time: datetime) ->
     # 5. Horário Explícito ou Período do Dia
     hour = None
     minute = 0
-    hora_match = re.search(r'(?:as|as)\s*(\d{1,2})(?:[h:](\d{2})?)?', text_norm)
+    hora_match = re.search(r'\b(?:as|a)\s*(\d{1,2})(?:[h:](\d{2})?)?', text_norm)
     if hora_match:
         hour = int(hora_match.group(1))
         minute = int(hora_match.group(2)) if hora_match.group(2) else 0
@@ -386,7 +394,7 @@ def _rule_based_single_extraction(transcription: str, current_time: datetime) ->
         # Aplica período apenas se não for parte de 'meia-noite'
         if re.search(r'(?<!meia[-\s])\b(?:da\s+noite|da\s+tarde|a\s+noite|a\s+tarde|pela\s+tarde|pela\s+noite)\b', text_norm) and hour < 12:
             hour += 12
-        elif hour in [1, 2, 3, 4, 5, 6] and not re.search(r'\b(?:da\s+manha|pela\s+manha|na\s+manha|madrugada)\b', text_norm):
+        elif hour in [1, 2, 3, 4, 5, 6] and not re.search(r'\b(?:da\s+manha|pela\s+manha|na\s+manha|madrugada|manha)\b', text_norm):
             hour += 12
         elif re.search(r'\b(?:manha|madrugada)\b', text_norm) and hour == 12:
             hour = 0
@@ -494,14 +502,13 @@ def clean_concise_title(transcription: str, categoria: str = "tarefa") -> str:
 
     # Remove termos temporais, dias da semana e datas (com e sem acento)
     patterns_to_remove = [
-        r'\b(?:para|na|no|em|[aàá]s|ao|de|pela)?\s*(?:hoje|amanh[aã]|depois\s+de\s+amanh[aã])\b',
+        r'\b(?:para|na|no|em|[aàá]s?|ao|de|pela)?\s*(?:hoje|amanh[aã]|depois\s+de\s+amanh[aã])\b',
         r'\b(?:ao|ao meio|meio)[\s-]dia\b',
         r'\b(?:a|a meia|meia)[\s-]noite\b',
-        r'\b(?:de|pela|na|a)?\s*(?:manh[aã]|tarde|noite|madrugada)\b',
-        r'\b(?:do dia de hoje|nesta semana|neste m[eê]s)\b',
-        r'\b(?:na|nesta|pr[oó]xim[ao])?\s*(?:segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo)(?:-feira)?\b',
-        r'\b(?:das|de)\s*(?:\d{1,2}|uma|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)(?:[h:]\d{2})?\s*(?:[aàá]s|at[eé]|at[eé]\s+[aàá]s|a)\s*(?:\d{1,2}|uma|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)(?:[h:]\d{2})?\b',
-        r'\b[aàá]s\s*(?:\d{1,2}|uma|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)(?:[h:]\d{2})?(?:\s*(?:da tarde|da noite|da manh[aã]))?\b',
+        r'\b[aàá]s?\s*\d{1,2}(?:[h:]\d{2})?(?:\s*(?:da\s+tarde|da\s+noite|da\s+manh[aã]|da\s+madrugada|a\s+noite|a\s+tarde|de\s+tarde|de\s+noite|de\s+manh[aã]))?\b',
+        r'\b(?:de|pela|na|a|da)?\s*(?:manh[aã]|tarde|noite|madrugada)\b',
+        r'\b(?:na|no|nesta|neste|pr[oó]xim[ao])?\s*(?:segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo)(?:-feira)?\b',
+        r'\b(?:das|de)\s*(?:\d{1,2}|uma|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)(?:[h:]\d{2})?\s*(?:[aàá]s?|at[eé]|at[eé]\s+[aàá]s?|a)\s*(?:\d{1,2}|uma|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)(?:[h:]\d{2})?\b',
         r'\b\d{1,2}\s*h(?:oras?)?\b',
         r'\bdaqui\s+a\s+\d+\s*(?:minutos?|horas?|dias?)\b',
         r'\bem\s+\d+\s*(?:minutos?|horas?|dias?)\b',
@@ -512,7 +519,7 @@ def clean_concise_title(transcription: str, categoria: str = "tarefa") -> str:
         t = re.sub(p, '', t, flags=re.IGNORECASE)
 
     # Remove preâmbulos e verbos introdutórios
-    t = re.sub(r'^(?:eu\s+)?(?:tem(?: um| uma)?|tenho(?: um| uma| que)?|preciso(?: de)?|vou|quero|lembrar(?:-me)? de|me lembr(?:a|e) de|lembrete de|anota(?:r)?|marcar|agendar|nao esquecer de|favor)\s+', '', t.strip(), flags=re.IGNORECASE)
+    t = re.sub(r'^(?:eu\s+)?(?:tem(?: um| uma)?|tenho\s+(?:que|de|um|uma)?|preciso\s+(?:de)?|vou\s+|quero\s+|lembrar\s+(?:de)?|n[aã]o\s+esquecer\s+(?:de)?|anota(?:r)?|marcar|agendar|favor)\s+', '', t.strip(), flags=re.IGNORECASE)
 
     # Remove artigos no início (ex: "uma reunião" -> "reunião")
     t = re.sub(r'^(?:um|uma|o|a|os|as)\s+', '', t.strip(), flags=re.IGNORECASE)
@@ -521,16 +528,16 @@ def clean_concise_title(transcription: str, categoria: str = "tarefa") -> str:
     t = re.sub(r'\b(importante|urgente)\b', '', t, flags=re.IGNORECASE)
 
     # Limpa conectivos e preposições que sobraram no começo ou fim repetidamente
-    for _ in range(3):
-        t = re.sub(r'^(?:para|de|em|a|[aàá]s|ao|com|sobre|na|no|nas|nos|da|do|das|dos)\s+', '', t.strip(), flags=re.IGNORECASE)
-        t = re.sub(r'\s+(?:para|de|em|a|[aàá]s|ao|com|sobre|na|no|nas|nos|da|do|das|dos)$', '', t.strip(), flags=re.IGNORECASE)
+    for _ in range(4):
+        t = re.sub(r'^(?:para|de|em|a|[aàá]s?|ao|com|sobre|na|no|nas|nos|da|do|das|dos)\s+', '', t.strip(), flags=re.IGNORECASE)
+        t = re.sub(r'\s+(?:para|de|em|a|[aàá]s?|ao|com|sobre|na|no|nas|nos|da|do|das|dos)$', '', t.strip(), flags=re.IGNORECASE)
         t = re.sub(r'\s+', ' ', t).strip()
 
     # Se sobrou algo relevante
     if t:
         words = t.split()
-        if len(words) > 5:
-            t = " ".join(words[:5])
+        if len(words) > 7:
+            t = " ".join(words[:7])
             t = re.sub(r'\s+(?:para|de|em|a|[aàá]s|ao|com|sobre|na|no|nas|nos|da|do|das|dos)$', '', t, flags=re.IGNORECASE)
         return t[0].upper() + t[1:]
 

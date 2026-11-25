@@ -81,6 +81,10 @@ class SoundNotificationManager {
 
   // Alarme contínuo: repete o sino suave e fala o lembrete
   startContinuousAlarm(medName = "remédio", intervalMs = 2800) {
+    if (typeof medName === "number") {
+      intervalMs = medName;
+      medName = "remédio";
+    }
     if (this.isAlarmRunning) return;
     this.isAlarmRunning = true;
     
@@ -153,18 +157,43 @@ class SoundNotificationManager {
   async requestNotificationPermission() {
     if ("Notification" in window && Notification.permission !== "granted") {
       try {
+        return await Notification.requestPermission();
+      } catch (e) {}
+    }
+    return Notification.permission;
+  }
+
+  async notify(title, body, tag = "bemlembrado-alerta") {
+    if (!("Notification" in window)) return;
+
+    if (Notification.permission === "default") {
+      try {
         await Notification.requestPermission();
       } catch (e) {}
     }
-  }
 
-  notify(title, body) {
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification(title, {
+    if (Notification.permission === "granted") {
+      const options = {
         body: body,
-        icon: "/icon-192.png",
-        vibrate: [200, 100, 200]
-      });
+        icon: "assets/logo-light-transparent.png",
+        badge: "assets/logo-light-transparent.png",
+        vibrate: [300, 150, 300, 150, 300],
+        tag: tag,
+        renotify: true,
+        requireInteraction: true
+      };
+
+      try {
+        if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+          const reg = await navigator.serviceWorker.ready;
+          await reg.showNotification(title, options);
+          return;
+        }
+      } catch (swErr) {}
+
+      try {
+        new Notification(title, options);
+      } catch (e) {}
     }
   }
 }

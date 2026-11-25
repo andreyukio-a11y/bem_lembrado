@@ -219,7 +219,7 @@ function initApp() {
       id: "idoso",
       name: "Dona Maria",
       role: "simplificado",
-      icon: "👵",
+      icon: "",
       fontSize: "grande",
       dependenteName: "",
       cuidadorPhone: ""
@@ -228,7 +228,7 @@ function initApp() {
       id: "cuidador",
       name: "Carlos (Cuidador)",
       role: "cuidador",
-      icon: "🩺",
+      icon: "",
       fontSize: "normal",
       dependenteName: "Dona Maria",
       cuidadorPhone: ""
@@ -237,7 +237,7 @@ function initApp() {
       id: "pessoal",
       name: "Meu Perfil",
       role: "pessoal",
-      icon: "👤",
+      icon: "",
       fontSize: "normal",
       dependenteName: "",
       cuidadorPhone: ""
@@ -294,7 +294,7 @@ function initApp() {
     if (activeProfile.role === "simplificado") {
       document.body.classList.add("modo-simplificado");
       if (voiceStatus && !voiceStatus.classList.contains("recording")) {
-        voiceStatus.textContent = "👉 Toque no microfone para falar seu lembrete";
+        voiceStatus.textContent = "Toque no microfone para falar seu lembrete";
       }
     } else if (activeProfile.role === "cuidador") {
       document.body.classList.add("modo-cuidador");
@@ -310,11 +310,13 @@ function initApp() {
 
     // 4. Header Badges
     if (profileBadgeName) profileBadgeName.textContent = activeProfile.name;
-    if (profileBadgeIcon) profileBadgeIcon.textContent = activeProfile.icon || (activeProfile.role === "simplificado" ? "👵" : (activeProfile.role === "cuidador" ? "🩺" : "👤"));
+    if (profileBadgeIcon) {
+      profileBadgeIcon.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
+    }
 
     const settingsCurrentProfileName = document.getElementById("settings-current-profile-name");
     if (settingsCurrentProfileName) {
-      settingsCurrentProfileName.textContent = `${activeProfile.icon || ''} ${activeProfile.name}`;
+      settingsCurrentProfileName.textContent = activeProfile.name;
     }
 
     // 5. Banner do Cuidador
@@ -323,8 +325,8 @@ function initApp() {
         caregiverBanner.style.display = "block";
         const bannerTitle = document.getElementById("caregiver-banner-title");
         if (bannerTitle) {
-          const depName = activeProfile.dependenteName || "Dona Maria";
-          bannerTitle.innerHTML = `🩺 <strong>Modo Cuidador:</strong> Acompanhando ${depName}`;
+          const depName = activeProfile.dependenteName || localStorage.getItem("bemlembrado_dependente_name") || "Dona Maria";
+          bannerTitle.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="vertical-align: middle; margin-right: 4px;"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg> <strong>Modo Cuidador:</strong> Acompanhando ${depName}`;
         }
       } else {
         caregiverBanner.style.display = "none";
@@ -388,14 +390,16 @@ function initApp() {
 
       row.innerHTML = `
         <div class="profile-card-left" data-id="${p.id}">
-          <span class="profile-icon">${p.icon || '👤'}</span>
+          <span class="profile-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+          </span>
           <div class="profile-info">
-            <strong>${p.name} ${isActive ? '<span style="color: var(--primary); font-size: 0.8rem; font-weight: 800;">✓ Ativo</span>' : ''}</strong>
+            <strong>${p.name} ${isActive ? '<span style="color: var(--primary); font-size: 0.8rem; font-weight: 800;">(Ativo)</span>' : ''}</strong>
             <small>${roleDesc}</small>
           </div>
         </div>
         <div class="profile-card-actions">
-          ${profilesList.length > 1 ? `<button class="btn-delete-profile" data-id="${p.id}" title="Excluir Perfil">🗑️</button>` : ''}
+          ${profilesList.length > 1 ? `<button class="btn-delete-profile" data-id="${p.id}" title="Excluir Perfil"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>` : ''}
         </div>
       `;
 
@@ -954,12 +958,49 @@ function initApp() {
   // Abertura e Fechamento do Modal de Configurações
   if (btnOpenSettings && settingsModal) {
     btnOpenSettings.addEventListener("click", () => {
+      // Ajusta as seções visíveis conforme o perfil
+      const isCaregiver = activeProfile.role === "cuidador";
+      const grpCaregiver = document.getElementById("grp-settings-caregiver");
+      const grpDeletion = document.getElementById("grp-settings-deletion");
+      const optReport = document.getElementById("opt-settings-report");
+
+      if (grpCaregiver) grpCaregiver.style.display = isCaregiver ? "block" : "none";
+      if (grpDeletion) grpDeletion.style.display = isCaregiver ? "block" : "none";
+      if (optReport) optReport.style.display = isCaregiver ? "flex" : "none";
+
+      const inputCuidadorDependente = document.getElementById("input-cuidador-dependente");
+      if (inputCuidadorDependente) {
+        inputCuidadorDependente.value = activeProfile.dependenteName || localStorage.getItem("bemlembrado_dependente_name") || "Dona Maria";
+      }
+      if (inputCuidadorPhone) {
+        inputCuidadorPhone.value = trustedPhone || localStorage.getItem("bemlembrado_cuidador_phone") || "";
+      }
+
       settingsModal.style.display = "flex";
     });
   }
   if (btnCloseSettings && settingsModal) {
     btnCloseSettings.addEventListener("click", () => {
       settingsModal.style.display = "none";
+    });
+  }
+
+  const btnSaveCaregiverLink = document.getElementById("btn-save-caregiver-link");
+  if (btnSaveCaregiverLink) {
+    btnSaveCaregiverLink.addEventListener("click", () => {
+      const inputDep = document.getElementById("input-cuidador-dependente");
+      const depName = inputDep ? inputDep.value.trim() : "";
+      const phone = inputCuidadorPhone ? inputCuidadorPhone.value.trim() : "";
+      if (depName) {
+        activeProfile.dependenteName = depName;
+        localStorage.setItem("bemlembrado_dependente_name", depName);
+      }
+      if (phone) {
+        trustedPhone = phone;
+        localStorage.setItem("bemlembrado_cuidador_phone", phone);
+      }
+      switchProfile(activeProfile.id);
+      alert("Vínculo com a pessoa idosa e WhatsApp de alertas salvos com sucesso!");
     });
   }
 
@@ -1408,12 +1449,9 @@ function initApp() {
       const result = await response.json();
       if (result.success) {
         const count = result.total_created || 1;
-        const provider = (result.data && result.data.ai_provider) ? result.data.ai_provider : "";
-        const isGemini = provider.toLowerCase().includes("gemini");
-        const badge = isGemini ? "Gemini AI ✨" : "IA Local";
         const msg = count > 1 
-          ? `✓ ${count} lembretes criados com sucesso! (${badge})` 
-          : `✓ Lembrete criado com sucesso! (${badge})`;
+          ? `${count} lembretes organizados com sucesso!` 
+          : "Lembrete anotado com sucesso!";
 
         if (window.soundManager) {
           window.soundManager.playSuccessChime();
@@ -1428,7 +1466,7 @@ function initApp() {
         setTimeout(() => {
           if (voiceStatus) {
             voiceStatus.textContent = activeProfile.role === "simplificado" 
-              ? "👉 Toque no microfone para falar seu lembrete" 
+              ? "Toque no microfone para falar seu lembrete" 
               : (activeProfile.role === "cuidador" ? "Grave um lembrete ou instrução de voz" : "Toque no microfone para falar");
           }
         }, 3000);
@@ -1861,7 +1899,7 @@ function initApp() {
     if (checkModal) checkModal.style.display = "flex";
 
     if (window.soundManager) {
-      window.soundManager.startContinuousAlarm(2200);
+      window.soundManager.startContinuousAlarm(medName || "seu medicamento", 2200);
       window.soundManager.notify("Hora do Medicamento", `Você tomou: ${medName}?`);
     }
   }
@@ -1886,35 +1924,22 @@ function initApp() {
     }, 450);
   }
 
-  // Verifica status da integração com a IA
+  // Solicita permissão de notificações no primeiro toque em qualquer lugar
+  document.addEventListener("click", () => {
+    if (window.soundManager) {
+      window.soundManager.requestNotificationPermission();
+    }
+  }, { once: true });
+
+  // Verifica status da integração com a IA (diagnóstico silencioso no console)
   async function checkAIStatus() {
     try {
       const res = await fetch("/api/ai/status");
-      const pill = document.getElementById("ai-status-pill");
       if (res.ok) {
         const data = await res.json();
-        if (pill) {
-          if (data.gemini_configured) {
-            pill.innerHTML = "✨ Gemini AI Ativo";
-            pill.className = "ai-status-pill online";
-            pill.title = `Conectado à IA Google Gemini (${data.key_prefix})`;
-          } else {
-            pill.innerHTML = "⚙️ IA em Modo Local";
-            pill.className = "ai-status-pill local";
-            pill.title = "GEMINI_API_KEY não configurada no servidor. Usando regras inteligentes locais.";
-          }
-        }
-      } else if (pill) {
-        pill.innerHTML = "⚙️ IA em Modo Local";
-        pill.className = "ai-status-pill local";
+        console.log("[LembreVoz AI]", data.gemini_configured ? `Gemini Conectado (${data.key_prefix})` : "Modo Regras Local Ativo");
       }
-    } catch (e) {
-      const pill = document.getElementById("ai-status-pill");
-      if (pill) {
-        pill.innerHTML = "⚙️ IA em Modo Local";
-        pill.className = "ai-status-pill local";
-      }
-    }
+    } catch (e) {}
   }
 
   checkAIStatus();
