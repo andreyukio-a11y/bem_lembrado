@@ -22,13 +22,19 @@ class VoiceController {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
         console.warn("Reconhecimento de fala nativo não suportado neste navegador.");
+        this.isSupported = false;
         return;
       }
+      this.isSupported = true;
+
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
       this.recognition = new SpeechRecognition();
       this.recognition.lang = "pt-BR";
-      this.recognition.continuous = true;
-      this.recognition.interimResults = true;
+      // Em celulares (especialmente iOS), continuous=true causa travamento e encerramento imediato.
+      this.recognition.continuous = !isMobile;
+      this.recognition.interimResults = !isIOS;
       this.recognition.maxAlternatives = 1;
 
       this.recognition.onstart = () => {
@@ -46,8 +52,6 @@ class VoiceController {
         }
 
         // Algoritmo anti-duplicação inteligente para Android e Desktop:
-        // No Android Chrome, cada item em results é frequentemente o acumulado da frase até o momento.
-        // Se um item novo começa com o texto anterior, o anterior era apenas um snapshot preliminar.
         const cleanPhrases = [];
         for (const chunk of rawChunks) {
           if (!cleanPhrases.length) {
@@ -55,7 +59,6 @@ class VoiceController {
           } else {
             const prev = cleanPhrases[cleanPhrases.length - 1];
             if (chunk.toLowerCase().startsWith(prev.toLowerCase())) {
-              // Substitui pelo snapshot mais completo
               cleanPhrases[cleanPhrases.length - 1] = chunk;
             } else if (!prev.toLowerCase().endsWith(chunk.toLowerCase())) {
               cleanPhrases.push(chunk);
@@ -79,9 +82,6 @@ class VoiceController {
 
       this.recognition.onerror = (event) => {
         console.warn("Status do microfone:", event.error);
-        if (event.error === "no-speech") {
-          return;
-        }
         this.isRecording = false;
         clearTimeout(this.silenceTimer);
         this.onError(event.error);
@@ -100,6 +100,7 @@ class VoiceController {
     } catch (e) {
       console.warn("Erro ao instanciar SpeechRecognition:", e);
       this.recognition = null;
+      this.isSupported = false;
     }
   }
 

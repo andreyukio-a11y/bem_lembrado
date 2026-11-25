@@ -1418,18 +1418,41 @@ function initApp() {
           }
         }
       },
-      onError: () => {
+      onError: (err) => {
         if (micWrapper) micWrapper.classList.remove("recording");
         if (micBtn) micBtn.innerHTML = ICONS.mic;
+        if (voiceStatus) {
+          if (err === "not-allowed" || err === "permission-denied") {
+            voiceStatus.textContent = "Microfone bloqueado. Permita o microfone no topo do navegador (ícone de cadeado).";
+          } else if (err === "service-not-allowed") {
+            voiceStatus.textContent = "Serviço de voz indisponível ou Ditado desativado no teclado do celular.";
+          } else if (err === "network") {
+            voiceStatus.textContent = "Erro de conexão com o serviço de voz. Verifique sua internet.";
+          } else if (err === "audio-capture") {
+            voiceStatus.textContent = "Nenhum microfone encontrado ou está sendo usado por outro app.";
+          } else if (err !== "no-speech") {
+            voiceStatus.textContent = "Não foi possível ouvir. Toque para tentar de novo ou use 'Digitar texto'.";
+          } else {
+            voiceStatus.textContent = "Nenhum som detectado. Toque para tentar novamente.";
+          }
+          setTimeout(() => {
+            voiceStatus.textContent = "Toque no microfone para falar";
+          }, 4500);
+        }
       }
     });
   } catch (err) {}
 
+  if (voice && !voice.isSupported && voiceStatus) {
+    voiceStatus.textContent = "Navegador sem suporte a voz. Toque no botão 'Digitar texto' abaixo.";
+  }
+
   if (micBtn) {
     micBtn.addEventListener("click", () => {
-      if (voice) voice.toggle();
-      else {
-        const manual = prompt("Digite seu lembrete:");
+      if (voice && voice.isSupported) {
+        voice.toggle();
+      } else {
+        const manual = prompt("Digite seu lembrete (ex: 'Remédio de pressão às 20h'):");
         if (manual && manual.trim()) processSpokenText(manual.trim());
       }
     });
