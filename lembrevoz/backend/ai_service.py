@@ -416,10 +416,16 @@ def _rule_based_single_extraction(transcription: str, current_time: datetime) ->
     # 5. Horário Explícito ou Período do Dia
     hour = None
     minute = 0
-    hora_match = re.search(r'\b(?:as|a)\s*(\d{1,2})(?:[h:](\d{2})?)?', text_norm)
+    # Suporta: 'às 7h', 'às 7', '7 horas', '7h', '7 da manhã', etc.
+    hora_match = re.search(r'\b(?:as|a)\s*(\d{1,2})(?:[h:](\d{2})?)?\b', text_norm)
+    if not hora_match:
+        hora_match = re.search(r'\b(\d{1,2})\s*(?:h|horas?|hrs?)\b', text_norm)
+    if not hora_match:
+        hora_match = re.search(r'\b(\d{1,2})\s*(?:da\s+manha|da\s+tarde|da\s+noite|pela\s+manha|pela\s+tarde|pela\s+noite)\b', text_norm)
+
     if hora_match:
         hour = int(hora_match.group(1))
-        minute = int(hora_match.group(2)) if hora_match.group(2) else 0
+        minute = int(hora_match.group(2)) if (hora_match.lastindex and hora_match.lastindex >= 2 and hora_match.group(2)) else 0
 
         # Aplica período apenas se não for parte de 'meia-noite'
         if re.search(r'(?<!meia[-\s])\b(?:da\s+noite|da\s+tarde|a\s+noite|a\s+tarde|pela\s+tarde|pela\s+noite)\b', text_norm) and hour < 12:

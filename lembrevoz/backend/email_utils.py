@@ -3,7 +3,6 @@ Módulo de Envio de E-mails - Bem Lembrado
 Suporta:
 1. Resend (API HTTP gratuita, rápida e sem necessidade de senhas de app)
 2. SMTP padrão (Gmail, Outlook, etc.)
-Se nenhuma credencial estiver configurada, registra em log e não trava o cadastro.
 """
 
 import os
@@ -11,6 +10,7 @@ import json
 import logging
 import smtplib
 import urllib.request
+import urllib.error
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -20,7 +20,7 @@ logger.setLevel(logging.INFO)
 def send_welcome_email(to_email: str, name: str) -> bool:
     """
     Envia um e-mail de boas-vindas com o template visual do Bem Lembrado.
-    Retorna True se enviado com sucesso ou False se falhar/não configurado.
+    Retorna True se enviado com sucesso ou False se falhar.
     """
     if not to_email or "@" not in to_email:
         logger.warning(f"[E-mail] E-mail de destino inválido: {to_email}")
@@ -42,13 +42,14 @@ def send_welcome_email(to_email: str, name: str) -> bool:
     # 2. Tenta via Resend (se RESEND_API_KEY estiver configurada)
     resend_api_key = os.getenv("RESEND_API_KEY", "").strip()
     if resend_api_key:
+        # No Resend em modo de teste, 'onboarding@resend.dev' é o remetente oficial obrigatório
+        from_email = os.getenv("RESEND_FROM", "").strip() or "onboarding@resend.dev"
         try:
-            from_email = os.getenv("RESEND_FROM", "Bem Lembrado <onboarding@resend.dev>")
             req = urllib.request.Request(
                 "https://api.resend.com/emails",
                 data=json.dumps({
                     "from": from_email,
-                    "to": [to_email],
+                    "to": [to_email.strip()],
                     "subject": subject,
                     "html": html_content
                 }).encode("utf-8"),
@@ -58,12 +59,18 @@ def send_welcome_email(to_email: str, name: str) -> bool:
                 },
                 method="POST"
             )
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=12) as resp:
                 if resp.status in (200, 201):
                     logger.info(f"[E-mail] Enviado com sucesso via Resend para {to_email}")
+                    print(f"✅ [E-mail] Enviado com sucesso via Resend para {to_email}")
                     return True
+        except urllib.error.HTTPError as he:
+            err_body = he.read().decode('utf-8', errors='ignore')
+            logger.warning(f"[E-mail Resend HTTP {he.code}]: {err_body}")
+            print(f"⚠️ [E-mail Resend HTTP {he.code}]: {err_body}")
         except Exception as e:
             logger.warning(f"[E-mail] Tentativa via Resend falhou: {e}")
+            print(f"⚠️ [E-mail] Falha genérica Resend: {e}")
 
     # 3. Tenta via SMTP (se SMTP_USERNAME e SMTP_PASSWORD estiverem configurados)
     smtp_user = os.getenv("SMTP_USERNAME", "").strip()
@@ -85,10 +92,10 @@ def send_welcome_email(to_email: str, name: str) -> bool:
                 server.sendmail(smtp_user, [to_email], msg.as_string())
 
             logger.info(f"[E-mail] Enviado com sucesso via SMTP para {to_email}")
+            print(f"✅ [E-mail] Enviado com sucesso via SMTP para {to_email}")
             return True
         except Exception as e:
             logger.warning(f"[E-mail] Tentativa via SMTP falhou: {e}")
+            print(f"⚠️ [E-mail SMTP]: {e}")
 
-    # 4. Caso não haja chaves configuradas ainda
-    logger.info(f"[E-mail Simulado] Cadastro de {name} ({to_email}) concluído. Configure RESEND_API_KEY para envio real.")
     return False

@@ -153,26 +153,67 @@
           </div>
         </div>
 
-        <!-- Grupo: Pessoa de Confiança / Cuidador (Apenas Perfil Cuidador) -->
+        <!-- Grupo: Código de Cuidado (Apenas Pessoa Idosa / Simplificado) -->
+        <div class="settings-group" id="grp-settings-elder-code" style="display: none;">
+          <div class="settings-group-title">Meu Código de Cuidado</div>
+          <div class="settings-option" style="flex-direction: column; align-items: stretch; gap: 8px; background: rgba(2, 132, 199, 0.06); border-radius: 10px; padding: 14px;">
+            <div class="settings-option-text">
+              <h4 style="color: var(--primary);">Código para o seu Cuidador</h4>
+              <p>Compartilhe este código com quem cuida de você para conectar os aplicativos sem confusão de nomes:</p>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px;">
+              <input type="text" id="display-care-code" class="settings-input" style="font-weight: 700; font-size: 1.2rem; letter-spacing: 2px; text-align: center; color: var(--primary);" readonly value="BL-1000">
+              <button id="btn-copy-care-code" class="btn-primary" style="padding: 10px 16px; white-space: nowrap;">Copiar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grupo: Vínculo do Cuidador por Código (Apenas Perfil Cuidador) -->
         <div class="settings-group" id="grp-settings-caregiver">
           <div class="settings-group-title">Vínculo e Alertas do Cuidador</div>
           <div class="settings-option" style="flex-direction: column; align-items: stretch; gap: 8px;">
             <div class="settings-option-text">
-              <h4>Pessoa Idosa Vinculada</h4>
-              <p>Nome da pessoa que você cuida e acompanha</p>
+              <h4>Vincular Pessoa Cuidada por Código (ID)</h4>
+              <p>Peça o código (ex: BL-4912) gerado no aplicativo da pessoa idosa:</p>
             </div>
-            <input type="text" id="input-cuidador-dependente" class="settings-input" placeholder="Ex: Dona Maria" value="Dona Maria">
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <input type="text" id="input-care-code-link" class="settings-input" placeholder="Ex: BL-4912" style="text-transform: uppercase;">
+              <button id="btn-link-by-care-code" class="btn-primary" style="padding: 8px 16px; white-space: nowrap;">Vincular</button>
+            </div>
+            <p id="care-link-status-msg" style="font-size: 0.82rem; margin: 2px 0 0; color: var(--text-secondary);"></p>
           </div>
-          <div class="settings-option" style="flex-direction: column; align-items: stretch; gap: 8px;">
+          <div class="settings-option" style="flex-direction: column; align-items: stretch; gap: 8px; margin-top: 8px;">
             <div class="settings-option-text">
-              <h4>WhatsApp do Cuidador</h4>
-              <p>Número para avisos caso o remédio não seja tomado (com DDD)</p>
+              <h4>WhatsApp para Alertas Automáticos</h4>
+              <p>Seu número com DDD para receber avisos de remédios não tomados:</p>
             </div>
-            <input type="tel" id="input-cuidador-phone" class="settings-input" placeholder="Ex: 11999998888">
+            <input type="tel" id="input-cuidador-phone" class="settings-input" placeholder="Ex: 11992246493">
+            <button id="btn-save-caregiver-link" class="btn-primary" style="margin-top: 4px; width: 100%;">
+              Salvar Telefone de Alerta
+            </button>
           </div>
-          <button id="btn-save-caregiver-link" class="btn-primary" style="margin-top: 8px; width: 100%;">
-            Salvar Vínculo e Contato
-          </button>
+        </div>
+
+        <!-- Grupo: Minha Conta e Segurança -->
+        <div class="settings-group" id="grp-settings-account">
+          <div class="settings-group-title">Minha Conta e Segurança</div>
+          <div class="settings-option" style="flex-direction: column; align-items: stretch; gap: 6px;">
+            <div class="settings-option-text">
+              <h4>E-mail Cadastrado</h4>
+              <p id="display-user-email" style="font-weight: 600; color: var(--text-primary); font-size: 0.95rem;">-</p>
+            </div>
+          </div>
+          <div class="settings-option" style="flex-direction: column; align-items: stretch; gap: 8px; margin-top: 6px;">
+            <button id="btn-toggle-change-password" class="btn-settings-profile" style="width: 100%; text-align: center; border: 1px solid var(--border-color); padding: 8px; border-radius: 8px; background: transparent;">
+              Alterar Senha de Acesso ▾
+            </button>
+            <div id="box-change-password" style="display: none; flex-direction: column; gap: 8px; margin-top: 6px; padding: 12px; background: rgba(0,0,0,0.02); border-radius: 8px; border: 1px solid var(--border-color);">
+              <input type="password" id="input-current-password" class="settings-input" placeholder="Senha atual">
+              <input type="password" id="input-new-password" class="settings-input" placeholder="Nova senha (mínimo 4 caracteres)">
+              <button id="btn-save-new-password" class="btn-primary" style="width: 100%;">Salvar Nova Senha</button>
+              <p id="change-password-msg" style="font-size: 0.82rem; margin: 0; text-align: center;"></p>
+            </div>
+          </div>
         </div>
 
         <!-- Grupo: Métodos de Exclusão -->

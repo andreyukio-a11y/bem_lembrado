@@ -9,7 +9,8 @@ import uvicorn
 from database import (
     init_db, list_items, add_item, update_item_status, delete_item,
     reschedule_item, toggle_pin, batch_delete, get_adherence_report,
-    update_item_notification, register_user, authenticate_user
+    update_item_notification, register_user, authenticate_user,
+    link_care_code, change_user_password
 )
 from ai_service import classify_and_extract, get_gemini_api_key
 from email_utils import send_welcome_email
@@ -84,6 +85,31 @@ def auth_login(req: LoginRequest):
     if not user:
         raise HTTPException(status_code=401, detail="E-mail ou senha incorretos.")
     return {"success": True, "user": user}
+
+class LinkCareRequest(BaseModel):
+    user_id: str
+    care_code: str
+
+@app.post("/api/user/link-care")
+def api_link_care(req: LinkCareRequest):
+    try:
+        res = link_care_code(req.user_id, req.care_code)
+        return res
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+class ChangePasswordRequest(BaseModel):
+    user_id: str
+    current_password: str
+    new_password: str
+
+@app.post("/api/user/change-password")
+def api_change_password(req: ChangePasswordRequest):
+    try:
+        change_user_password(req.user_id, req.current_password, req.new_password)
+        return {"success": True, "message": "Senha alterada com sucesso!"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/items")
 def get_items(usuario_id: Optional[str] = None, dependente_id: Optional[str] = None):

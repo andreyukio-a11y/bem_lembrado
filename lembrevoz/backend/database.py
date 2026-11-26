@@ -152,8 +152,25 @@ def init_db():
     );
     """)
     conn.commit()
+    # Garante as colunas care_code e linked_care_code na tabela users
     try:
-        cursor.execute("ALTER TABLE items ADD COLUMN tipo_notificacao TEXT DEFAULT 'padrao'")
+        cursor.execute("ALTER TABLE users ADD COLUMN care_code TEXT DEFAULT ''")
+        conn.commit()
+    except Exception:
+        pass
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN linked_care_code TEXT DEFAULT ''")
+        conn.commit()
+    except Exception:
+        pass
+
+    # Garante que todo usuário idoso/simplificado tenha um código único de vínculo
+    try:
+        cursor.execute("SELECT id, care_code FROM users WHERE care_code IS NULL OR care_code = ''")
+        rows = cursor.fetchall()
+        for r in rows:
+            code = f"BL-{secrets.randbelow(9000) + 1000}"
+            cursor.execute("UPDATE users SET care_code = ? WHERE id = ?", (code, r["id"]))
         conn.commit()
     except Exception:
         pass
@@ -343,6 +360,7 @@ def register_user(name: str, email: str, password: str, role: str = "simplificad
         raise ValueError("O nome é obrigatório.")
 
     user_id = "usr_" + secrets.token_hex(6)
+    care_code = f"BL-{secrets.randbelow(9000) + 1000}"
     font_size = "grande" if role == "simplificado" else "normal"
     pw_hash = _hash_password(password)
 
@@ -350,9 +368,9 @@ def register_user(name: str, email: str, password: str, role: str = "simplificad
     cursor = conn.cursor()
     try:
         cursor.execute("""
-            INSERT INTO users (id, name, email, password_hash, role, purpose, phone, dependente_name, font_size)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (user_id, name.strip(), email_clean, pw_hash, role, purpose, phone.strip(), dependente_name.strip(), font_size))
+            INSERT INTO users (id, name, email, password_hash, role, purpose, phone, dependente_name, font_size, care_code)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (user_id, name.strip(), email_clean, pw_hash, role, purpose, phone.strip(), dependente_name.strip(), font_size, care_code))
         conn.commit()
     except sqlite3.IntegrityError:
         conn.close()
@@ -367,7 +385,8 @@ def register_user(name: str, email: str, password: str, role: str = "simplificad
         "purpose": purpose,
         "phone": phone.strip(),
         "dependente_name": dependente_name.strip(),
-        "font_size": font_size
+        "font_size": font_size,
+        "care_code": care_code
     }
 
 def authenticate_user(email: str, password: str) -> dict:
@@ -389,6 +408,59 @@ def authenticate_user(email: str, password: str) -> dict:
         "purpose": row["purpose"],
         "phone": row["phone"] or "",
         "dependente_name": row["dependente_name"] or "",
-        "font_size": row["font_size"] or ("grande" if row["role"] == "simplificado" else "normal")
+        "font_size": row["font_size"] or ("grande" if row["role"] == "simplificado" else "normal"),
+        "care_code": row["care_code"] if "care_code" in row.keys() else "",
+        "linked_care_code": row["linked_care_code"] if "linked_care_code" in row.keys() else ""
     }
+
+def link_care_code(cuidador_id: str, care_code: str) -> dict:
+    """Vincula um cuidador a uma pessoa idosa/dependente através do código curto (ex: BL-4891)."""
+    code_clean = (care_code or "").strip().upper()
+    if not code_clean:
+        raise ValueError("Informe o código de vínculo (ex: BL-1234).")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name, phone, role FROM users WHERE UPPER(care_code) = ?", (code_clean,))
+    idoso = cursor.fetchone()
+
+    if not idoso:
+        conn.close()
+        raise ValueError(f"Nenhum perfil encontrado com o código '{code_clean}'. Verifique no perfil da pessoa cuidada.")
+
+    # Atualiza o cuidador com o dependente
+    cursor.execute("""
+        UPDATE users 
+        SET linked_care_code = ?, dependente_name = ?
+        WHERE id = ?
+    """, (code_clean, idoso["name"], cuidador_id))
+    conn.commit()
+    conn.close()
+
+    return {
+        "success": True,
+        "dependente_id": idoso["id"],
+        "dependente_name": idoso["name"],
+        "care_code": code_clean
+    }
+
+def change_user_password(user_id: str, current_password: str, new_password: str) -> bool:
+    """Altera a senha do usuário após confirmar a senha atual."""
+    if not new_password or len(new_password) < 4:
+        raise ValueError("A nova senha deve ter pelo menos 4 caracteres.")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
+
+    if not row or not _verify_password(current_password or "", row["password_hash"]):
+        conn.close()
+        raise ValueError("Senha atual incorreta.")
+
+    new_hash = _hash_password(new_password)
+    cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user_id))
+    conn.commit()
+    conn.close()
+    return True
 

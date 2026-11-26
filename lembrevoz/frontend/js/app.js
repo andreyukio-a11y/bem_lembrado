@@ -367,6 +367,45 @@ function initApp() {
       }
     }
 
+    // Configurações personalizadas por Tipo de Perfil e Conta
+    const grpElderCode = document.getElementById("grp-settings-elder-code");
+    const grpCaregiver = document.getElementById("grp-settings-caregiver");
+    const displayCareCode = document.getElementById("display-care-code");
+    const displayUserEmail = document.getElementById("display-user-email");
+    const careLinkStatusMsg = document.getElementById("care-link-status-msg");
+
+    if (displayUserEmail) {
+      displayUserEmail.textContent = activeProfile.email || "Perfil local (sem e-mail)";
+    }
+
+    if (activeProfile.role === "simplificado") {
+      if (grpElderCode) grpElderCode.style.display = "block";
+      if (grpCaregiver) grpCaregiver.style.display = "none";
+      if (displayCareCode) {
+        if (!activeProfile.careCode) {
+          let codeNum = 1000;
+          for (let i = 0; i < (activeProfile.id || "idoso").length; i++) {
+            codeNum = (codeNum * 31 + activeProfile.id.charCodeAt(i)) % 9000;
+          }
+          activeProfile.careCode = "BL-" + (Math.abs(codeNum) + 1000);
+          saveStoredProfiles(profilesList);
+        }
+        displayCareCode.value = activeProfile.careCode;
+      }
+    } else if (activeProfile.role === "cuidador") {
+      if (grpElderCode) grpElderCode.style.display = "none";
+      if (grpCaregiver) grpCaregiver.style.display = "block";
+      if (careLinkStatusMsg) {
+        careLinkStatusMsg.textContent = activeProfile.dependenteName 
+          ? `✓ Atualmente acompanhando: ${activeProfile.dependenteName}`
+          : "Nenhuma pessoa cuidada vinculada ainda.";
+        careLinkStatusMsg.style.color = activeProfile.dependenteName ? "var(--primary)" : "var(--text-secondary)";
+      }
+    } else {
+      if (grpElderCode) grpElderCode.style.display = "none";
+      if (grpCaregiver) grpCaregiver.style.display = "none";
+    }
+
     if (window.soundManager) {
       window.soundManager.voiceFeedbackEnabled = appSettings.voiceFeedbackEnabled;
     }
@@ -1009,21 +1048,128 @@ function initApp() {
   const btnSaveCaregiverLink = document.getElementById("btn-save-caregiver-link");
   if (btnSaveCaregiverLink) {
     btnSaveCaregiverLink.addEventListener("click", () => {
-      const inputDep = document.getElementById("input-cuidador-dependente");
-      const depName = inputDep ? inputDep.value.trim() : "";
       const phone = inputCuidadorPhone ? inputCuidadorPhone.value.trim() : "";
-      if (depName) {
-        activeProfile.dependenteName = depName;
-        localStorage.setItem("bemlembrado_dependente_name", depName);
-      }
       if (phone) {
         activeProfile.cuidadorPhone = phone;
         appSettings.cuidadorPhone = phone;
         localStorage.setItem("bemlembrado_cuidador_phone", phone);
+        saveStoredProfiles(profilesList);
+        alert("Número de WhatsApp salvo com sucesso!");
       }
-      saveStoredProfiles(profilesList);
-      switchActiveProfile(activeProfile.id);
-      alert("Vínculo e contato de alerta salvos com sucesso!");
+    });
+  }
+
+  // Copiar código de cuidado da pessoa idosa
+  const btnCopyCareCode = document.getElementById("btn-copy-care-code");
+  if (btnCopyCareCode) {
+    btnCopyCareCode.addEventListener("click", () => {
+      const codeInput = document.getElementById("display-care-code");
+      if (codeInput) {
+        navigator.clipboard.writeText(codeInput.value).then(() => {
+          btnCopyCareCode.textContent = "Copiado!";
+          setTimeout(() => { btnCopyCareCode.textContent = "Copiar"; }, 2000);
+        }).catch(() => {
+          codeInput.select();
+          document.execCommand("copy");
+          btnCopyCareCode.textContent = "Copiado!";
+          setTimeout(() => { btnCopyCareCode.textContent = "Copiar"; }, 2000);
+        });
+      }
+    });
+  }
+
+  // Vincular pessoa cuidada por código (ID) no perfil Cuidador
+  const btnLinkByCareCode = document.getElementById("btn-link-by-care-code");
+  if (btnLinkByCareCode) {
+    btnLinkByCareCode.addEventListener("click", async () => {
+      const inputCode = document.getElementById("input-care-code-link");
+      const msgElem = document.getElementById("care-link-status-msg");
+      const codeVal = inputCode ? inputCode.value.trim().toUpperCase() : "";
+      if (!codeVal) {
+        alert("Por favor, digite o código de vínculo (ex: BL-1234).");
+        return;
+      }
+      btnLinkByCareCode.textContent = "Vinculando...";
+      try {
+        const resp = await fetch("/api/user/link-care", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: activeProfile.id, care_code: codeVal })
+        });
+        const resData = await resp.json();
+        if (!resp.ok) throw new Error(resData.detail || "Código não encontrado.");
+
+        activeProfile.dependenteName = resData.dependente_name;
+        activeProfile.dependenteId = resData.dependente_id;
+        localStorage.setItem("bemlembrado_dependente_name", resData.dependente_name);
+        saveStoredProfiles(profilesList);
+        applySettings();
+        loadItems();
+        if (msgElem) {
+          msgElem.textContent = `✓ Vinculado com sucesso a ${resData.dependente_name}!`;
+          msgElem.style.color = "var(--primary)";
+        }
+        alert(`Vínculo realizado com sucesso com ${resData.dependente_name}!`);
+      } catch (err) {
+        if (msgElem) {
+          msgElem.textContent = err.message;
+          msgElem.style.color = "#ef4444";
+        }
+        alert(err.message);
+      } finally {
+        btnLinkByCareCode.textContent = "Vincular";
+      }
+    });
+  }
+
+  // Alterar Senha de Acesso
+  const btnToggleChangePw = document.getElementById("btn-toggle-change-password");
+  const boxChangePw = document.getElementById("box-change-password");
+  if (btnToggleChangePw && boxChangePw) {
+    btnToggleChangePw.addEventListener("click", () => {
+      boxChangePw.style.display = boxChangePw.style.display === "none" ? "flex" : "none";
+    });
+  }
+
+  const btnSaveNewPw = document.getElementById("btn-save-new-password");
+  if (btnSaveNewPw) {
+    btnSaveNewPw.addEventListener("click", async () => {
+      const currPw = document.getElementById("input-current-password")?.value || "";
+      const newPw = document.getElementById("input-new-password")?.value || "";
+      const msgElem = document.getElementById("change-password-msg");
+
+      if (!currPw || !newPw) {
+        alert("Preencha a senha atual e a nova senha.");
+        return;
+      }
+      btnSaveNewPw.textContent = "Salvando...";
+      try {
+        const resp = await fetch("/api/user/change-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: activeProfile.id,
+            current_password: currPw,
+            new_password: newPw
+          })
+        });
+        const resData = await resp.json();
+        if (!resp.ok) throw new Error(resData.detail || "Erro ao alterar senha.");
+        if (msgElem) {
+          msgElem.textContent = "Senha alterada com sucesso!";
+          msgElem.style.color = "var(--primary)";
+        }
+        alert("Senha alterada com sucesso!");
+        if (boxChangePw) boxChangePw.style.display = "none";
+      } catch (err) {
+        if (msgElem) {
+          msgElem.textContent = err.message;
+          msgElem.style.color = "#ef4444";
+        }
+        alert(err.message);
+      } finally {
+        btnSaveNewPw.textContent = "Salvar Nova Senha";
+      }
     });
   }
 
@@ -1933,7 +2079,7 @@ function initApp() {
     let startX = 0;
     let currentX = 0;
     let isSwiping = false;
-    const SWIPE_DELETE_THRESHOLD = 0.70; // 70% da largura do card
+    const SWIPE_ACTION_THRESHOLD = 0.75; // Menos sensível: exige 75% do card para ativar
 
     // Eventos de Toque (Mobile)
     card.addEventListener("touchstart", (e) => {
@@ -1946,17 +2092,23 @@ function initApp() {
       if (!isSwiping) return;
       currentX = e.touches[0].clientX - startX;
       const cardWidth = card.offsetWidth;
-      const progress = Math.min(Math.abs(currentX) / (cardWidth * SWIPE_DELETE_THRESHOLD), 1);
+      const progress = Math.min(Math.abs(currentX) / (cardWidth * SWIPE_ACTION_THRESHOLD), 1);
       
-      // Permite deslizar para a esquerda ou direita
-      if (Math.abs(currentX) > 10) {
+      if (Math.abs(currentX) > 15) {
         card.style.transform = `translateX(${currentX}px)`;
-        card.style.opacity = `${1 - (progress * 0.4)}`;
-        // Atualiza cor de fundo baseado no progresso
+        card.style.opacity = `${1 - (progress * 0.35)}`;
         if (bg) {
-          bg.style.background = progress >= 1 
-            ? "linear-gradient(135deg, #e74c3c, #c0392b)" 
-            : `linear-gradient(135deg, rgba(231,76,60,${progress * 0.6}), rgba(192,57,43,${progress * 0.4}))`;
+          if (currentX > 0) {
+            // Arrastar para a DIREITA: Deletar (Vermelho suave)
+            bg.style.background = progress >= 1 
+              ? "linear-gradient(135deg, #ef4444, #dc2626)" 
+              : `rgba(239, 68, 68, ${progress * 0.7})`;
+          } else {
+            // Arrastar para a ESQUERDA: Concluir / Arquivar (Azul Bem Lembrado)
+            bg.style.background = progress >= 1 
+              ? "linear-gradient(135deg, #0284c7, #0369a1)" 
+              : `rgba(2, 132, 199, ${progress * 0.7})`;
+          }
         }
       }
     }, { passive: true });
@@ -1967,17 +2119,32 @@ function initApp() {
       card.style.transition = "transform 0.25s ease-out, opacity 0.25s ease-out";
 
       const cardWidth = card.offsetWidth;
-      const progress = Math.abs(currentX) / (cardWidth * SWIPE_DELETE_THRESHOLD);
+      const progress = Math.abs(currentX) / (cardWidth * SWIPE_ACTION_THRESHOLD);
 
-      // Só deleta se ultrapassou 70% da largura
       if (progress >= 1) {
-        card.style.transform = currentX > 0 ? "translateX(120%)" : "translateX(-120%)";
-        card.style.opacity = "0";
-        setTimeout(async () => {
-          await fetch(`/api/items/${id}`, { method: "DELETE" });
-          loadItems();
-        }, 250);
+        if (currentX > 0) {
+          // Deslizou para a DIREITA -> Excluir
+          card.style.transform = "translateX(120%)";
+          card.style.opacity = "0";
+          setTimeout(async () => {
+            await fetch(`/api/items/${id}`, { method: "DELETE" });
+            loadItems();
+          }, 200);
+        } else {
+          // Deslizou para a ESQUERDA -> Concluir / Arquivar
+          card.style.transform = "translateX(-120%)";
+          card.style.opacity = "0";
+          setTimeout(async () => {
+            await fetch(`/api/items/${id}/status`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "concluido" })
+            });
+            loadItems();
+          }, 200);
+        }
       } else {
+        // Não atingiu o limiar mínimo -> Volta para o centro
         card.style.transform = "translateX(0px)";
         card.style.opacity = "1";
         if (bg) bg.style.background = "";
