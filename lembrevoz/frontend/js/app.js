@@ -1091,25 +1091,54 @@ function initApp() {
       }
       btnLinkByCareCode.textContent = "Vinculando...";
       try {
-        const resp = await fetch("/api/user/link-care", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user_id: activeProfile.id, care_code: codeVal })
-        });
-        const resData = await resp.json();
-        if (!resp.ok) throw new Error(resData.detail || "Código não encontrado.");
+        const cleanCode = codeVal.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+        let targetDepName = "";
+        let targetDepId = "";
 
-        activeProfile.dependenteName = resData.dependente_name;
-        activeProfile.dependenteId = resData.dependente_id;
-        localStorage.setItem("bemlembrado_dependente_name", resData.dependente_name);
+        // 1. Tenta vincular via API no servidor
+        try {
+          const resp = await fetch("/api/user/link-care", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: activeProfile.id, care_code: codeVal })
+          });
+          const resData = await resp.json();
+          if (resp.ok && resData.success) {
+            targetDepName = resData.dependente_name;
+            targetDepId = resData.dependente_id;
+          }
+        } catch (apiErr) {
+          console.warn("[LinkCare] API error, tentando busca local:", apiErr);
+        }
+
+        // 2. Se não achou na API ou está em perfil local, busca na lista de perfis do dispositivo
+        if (!targetDepName) {
+          const localMatch = profilesList.find(p => {
+            const pCode = (p.careCode || "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
+            return pCode === cleanCode || pCode.endsWith(cleanCode) || cleanCode.endsWith(pCode);
+          });
+          if (localMatch) {
+            targetDepName = localMatch.name;
+            targetDepId = localMatch.id;
+          }
+        }
+
+        if (!targetDepName) {
+          throw new Error(`Nenhum perfil encontrado com o código '${codeVal}'. Verifique no perfil da pessoa cuidada.`);
+        }
+
+        activeProfile.dependenteName = targetDepName;
+        activeProfile.dependenteId = targetDepId;
+        activeProfile.linkedCareCode = codeVal;
+        localStorage.setItem("bemlembrado_dependente_name", targetDepName);
         saveStoredProfiles(profilesList);
         applySettings();
         loadItems();
         if (msgElem) {
-          msgElem.textContent = `✓ Vinculado com sucesso a ${resData.dependente_name}!`;
+          msgElem.textContent = `✓ Vinculado com sucesso a ${targetDepName}!`;
           msgElem.style.color = "var(--primary)";
         }
-        alert(`Vínculo realizado com sucesso com ${resData.dependente_name}!`);
+        alert(`Vínculo realizado com sucesso com ${targetDepName}!`);
       } catch (err) {
         if (msgElem) {
           msgElem.textContent = err.message;

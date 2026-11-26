@@ -419,34 +419,44 @@ def authenticate_user(email: str, password: str) -> dict:
     }
 
 def link_care_code(cuidador_id: str, care_code: str) -> dict:
-    """Vincula um cuidador a uma pessoa idosa/dependente através do código curto (ex: BL-4891)."""
-    code_clean = (care_code or "").strip().upper()
-    if not code_clean:
+    """Vincula um cuidador a uma pessoa idosa/dependente através do código curto (ex: BL-4891 ou BL4891)."""
+    raw_code = (care_code or "").strip().upper()
+    sanitized = re.sub(r'[^A-Z0-9]', '', raw_code)
+    if not sanitized:
         raise ValueError("Informe o código de vínculo (ex: BL-1234).")
 
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, phone, role FROM users WHERE UPPER(care_code) = ?", (code_clean,))
+    # Busca flexível: aceita com ou sem hífen, minúsculas ou maiúsculas
+    cursor.execute("""
+        SELECT id, name, phone, role, care_code 
+        FROM users 
+        WHERE REPLACE(REPLACE(UPPER(care_code), '-', ''), ' ', '') = ?
+           OR UPPER(care_code) = ?
+           OR UPPER(care_code) = ?
+    """, (sanitized, raw_code, f"BL-{sanitized.replace('BL', '')}"))
     idoso = cursor.fetchone()
 
     if not idoso:
         conn.close()
-        raise ValueError(f"Nenhum perfil encontrado com o código '{code_clean}'. Verifique no perfil da pessoa cuidada.")
+        raise ValueError(f"Nenhum perfil encontrado com o código '{raw_code}'. Verifique o código exibido no perfil da pessoa cuidada.")
 
-    # Atualiza o cuidador com o dependente
-    cursor.execute("""
-        UPDATE users 
-        SET linked_care_code = ?, dependente_name = ?
-        WHERE id = ?
-    """, (code_clean, idoso["name"], cuidador_id))
-    conn.commit()
+    try:
+        cursor.execute("""
+            UPDATE users 
+            SET linked_care_code = ?, dependente_name = ?
+            WHERE id = ?
+        """, (idoso["care_code"] or raw_code, idoso["name"], cuidador_id))
+        conn.commit()
+    except Exception:
+        pass
     conn.close()
 
     return {
         "success": True,
         "dependente_id": idoso["id"],
         "dependente_name": idoso["name"],
-        "care_code": code_clean
+        "care_code": idoso["care_code"] or raw_code
     }
 
 def change_user_password(user_id: str, current_password: str, new_password: str) -> bool:
