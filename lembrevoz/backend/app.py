@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -12,6 +12,7 @@ from database import (
     update_item_notification, register_user, authenticate_user
 )
 from ai_service import classify_and_extract, get_gemini_api_key
+from email_utils import send_welcome_email
 
 # Inicializa o banco de dados
 init_db()
@@ -58,7 +59,7 @@ def ai_status():
     }
 
 @app.post("/api/auth/register")
-def auth_register(req: RegisterRequest):
+def auth_register(req: RegisterRequest, background_tasks: BackgroundTasks):
     try:
         user = register_user(
             name=req.name,
@@ -69,6 +70,10 @@ def auth_register(req: RegisterRequest):
             phone=req.phone or "",
             dependente_name=req.dependente_name or ""
         )
+        # Dispara o e-mail de boas-vindas em segundo plano sem atrasar o retorno da tela
+        if req.email:
+            background_tasks.add_task(send_welcome_email, req.email, req.name)
+
         return {"success": True, "user": user}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
