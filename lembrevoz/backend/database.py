@@ -154,6 +154,11 @@ def init_db():
     conn.commit()
     # Garante as colunas care_code e linked_care_code na tabela users
     try:
+        cursor.execute("ALTER TABLE items ADD COLUMN tipo_notificacao TEXT DEFAULT 'padrao'")
+        conn.commit()
+    except Exception:
+        pass
+    try:
         cursor.execute("ALTER TABLE users ADD COLUMN care_code TEXT DEFAULT ''")
         conn.commit()
     except Exception:
