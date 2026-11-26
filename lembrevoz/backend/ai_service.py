@@ -257,6 +257,25 @@ def split_multiple_intents(text: str) -> list:
         flags=re.IGNORECASE
     )
 
+    # 6. Quebras automáticas quando um novo dia ou indicador temporal começa após um horário anterior (MESMO SEM 'e' ou vírgula)
+    # Exemplo: "...à 1h da tarde sexta-feira tenho prova...", "...às 10h amanhã preciso..."
+    temporal_starter = r'(?:(?:(?:na|no|em|neste|nesta|pr[oó]xim[ao])\s+)?(?:hoje|amanh[aã]|depois\s+de\s+amanh[aã]|segunda(?:-feira)?|ter[cç]a(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|s[aá]bado|domingo))\b'
+    s = re.sub(
+        r'(\b(?:da\s+tarde|da\s+noite|da\s+manh[aã]|da\s+madrugada|\d{1,2}h(?:\d{2})?|\d{1,2}:\d{2}|horas?))\s+(?=' + temporal_starter + r')',
+        r'\1 ||| ',
+        s,
+        flags=re.IGNORECASE
+    )
+
+    # 7. Quebras automáticas quando uma nova ação/remédio começa após um horário anterior (MESMO SEM conectivo)
+    # Exemplo: "...às 8h remédio de diabetes...", "...às 14h consulta médica..."
+    s = re.sub(
+        r'(\b(?:da\s+tarde|da\s+noite|da\s+manh[aã]|da\s+madrugada|\d{1,2}h(?:\d{2})?|\d{1,2}:\d{2}|horas?))\s+(?=' + actions + r')',
+        r'\1 ||| ',
+        s,
+        flags=re.IGNORECASE
+    )
+
     raw_parts = [p.strip() for p in s.split('|||') if p.strip()]
     cleaned_parts = []
     for p in raw_parts:
@@ -530,7 +549,7 @@ def clean_concise_title(transcription: str, categoria: str = "tarefa") -> str:
         t = re.sub(p, '', t, flags=re.IGNORECASE)
 
     # Remove preâmbulos e verbos introdutórios
-    t = re.sub(r'^(?:eu\s+)?(?:tem(?: um| uma)?|tenho\s+(?:que|de|um|uma)?|preciso\s+(?:de)?|vou\s+|quero\s+|lembrar\s+(?:de)?|n[aã]o\s+esquecer\s+(?:de)?|anota(?:r)?|marcar|agendar|favor)\s+', '', t.strip(), flags=re.IGNORECASE)
+    t = re.sub(r'^(?:eu\s+)?(?:tem(?: um| uma)?|tenho(?:\s+(?:que|de|um|uma))?|preciso(?:\s+de)?|vou|quero|lembrar(?:\s+de)?|n[aã]o\s+esquecer(?:\s+de)?|anota(?:r)?|marcar|agendar|favor)\s+', '', t.strip(), flags=re.IGNORECASE)
 
     # Remove artigos no início (ex: "uma reunião" -> "reunião")
     t = re.sub(r'^(?:um|uma|o|a|os|as)\s+', '', t.strip(), flags=re.IGNORECASE)
